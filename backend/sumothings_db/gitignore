@@ -1,0 +1,8 @@
+# Ignore everything in this folder by default
+*
+
+# Keep this Git ignore file
+!.gitignore
+
+# Keep the PostgreSQL backup intended for GitHub
+!success.dump
