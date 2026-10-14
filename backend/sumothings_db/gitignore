@@ -1,0 +1,32 @@
+# Ignore all files by default in this folder
+*
+
+# Allow the Git ignore file and the required database backup
+!.gitignore
+!success.dump
+
+# Ignore common environment files and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+secrets.*
+*secret*
+*credential*
+*credentials*
+*password*
+*passwd*
+*token*
+*api_key*
+*apikey*
+*access_key*
+*private_key*
+
+# IMPORTANT:
+# These rules ignore files by name/path, not secret values inside success.dump.
+# Inspect the dump and remove or sanitize sensitive data before publishing.
