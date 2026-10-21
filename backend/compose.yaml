@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: success_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentinel-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  monolito-escucha:
+    build:
+      context: ./monolito-escucha
+      dockerfile: Dockerfile
+    container_name: monolito_escucha
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_ENV: development
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./monolito-escucha:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sentinel-net
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
+
+volumes:
+  postgres_data:
+
+networks:
+  sentinel-net:
+    driver: bridge
