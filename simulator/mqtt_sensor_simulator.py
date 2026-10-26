@@ -27,14 +27,14 @@ from telemetry_standard import aggregate_readings
 
 try:
     import paho.mqtt.client as mqtt
-except ModuleNotFoundError:  # Permite ejecutar --dry-run sin instalar dependencias.
+except ModuleNotFoundError:  # Dejo el modo dry-run disponible aunque no tenga MQTT instalado.
     mqtt = None
 
 
 BUILDING_ID = "SB-001"
 NODES = {
-    # Coordenadas de demostración del edificio en Bogotá. Reemplazar por las
-    # coordenadas reales del proyecto cuando el cliente las confirme.
+    # Por ahora uso estas coordenadas de prueba para ubicar el edificio.
+    # Después las cambio cuando tengamos la ubicación definitiva.
     "NODE-FLOOR-1": {
         "zone_id": "ZONE-F1", "floor": 1,
         "bridge_name": "Bridge 1 - Piso 1",
@@ -154,10 +154,9 @@ def topic_for(node_id: str, sensor_id_value: str) -> str:
 
 def select_transport(node_id: str, bridge_state: dict[str, bool],
                      lora_state: dict[str, bool], mesh_state: bool) -> str | None:
-    """Selecciona la ruta simulada para un evento.
+    """Aquí decido por qué ruta intento enviar cada evento.
 
-    La prioridad de comunicación es LoRa, luego mesh IEEE 802.15.4 y,
-    finalmente, almacenamiento local si no existe una ruta disponible.
+    Primero pruebo LoRa, después mesh y, si no hay ruta, dejo el dato local.
     """
     if not bridge_state.get(node_id, False):
         return None
@@ -203,8 +202,8 @@ def event_envelope(node_id: str, sensor_type: str, sequence: int,
         "sequence_number": sequence,
         "priority": priority,
         "quality": quality,
-        # Normal telemetry is periodic; high/critical events bypass the
-        # 30-second cadence and are dispatched as soon as a route is available.
+        # Las lecturas normales esperan el intervalo. Si aparece una emergencia,
+        # la envío de una vez sin esperar el siguiente ciclo.
         "delivery_policy": "immediate" if priority in {"high", "critical"} else "periodic",
         "transport": "mqtt",
         "payload": payload,
@@ -256,11 +255,10 @@ def readings_for(node_id: str, sequence: int, anomalies: set[str]) -> list[dict[
 
 
 def batch_envelope(readings: list[dict[str, Any]], sequence: int) -> dict[str, Any]:
-    """Agrupa las ocho lecturas de ambos bridges en un solo JSON MQTT.
+    """Junto las lecturas de los dos bridges en un solo paquete JSON.
 
-    El agrupamiento ocurre en el bridge simulado, después de generar las
-    lecturas de cada sensor. Así el backend remoto recibe un mensaje cada 30 s,
-    pero puede seguir guardando una fila por sensor.
+    El bridge recibe las lecturas individuales y arma el paquete antes de
+    enviarlo al backend.
     """
     by_node: dict[str, dict[str, Any]] = {}
     for event in readings:
@@ -318,10 +316,9 @@ def save_aggregate_outbox(con: sqlite3.Connection, aggregate: dict[str, Any]) ->
 def publish_pending_api(con: sqlite3.Connection, api_url: str | None,
                         api_token: str | None, timeout: float,
                         only_uids: set[str] | None = None) -> int:
-    """Envía por REST únicamente los mensajes nuevos de este ciclo.
+    """Envío por REST los paquetes nuevos que todavía están pendientes.
 
-    Los pendientes antiguos no se vacían por REST: se reservan para MQTT
-    como cola de recuperación cuando vuelva la conectividad.
+    Los paquetes antiguos quedan reservados para la recuperación por MQTT.
     """
     if not api_url:
         return 0
@@ -373,10 +370,9 @@ def publish_pending_api(con: sqlite3.Connection, api_url: str | None,
 
 def publish_pending_aggregate_mqtt(client: Any, con: sqlite3.Connection,
                                    enabled: bool) -> int:
-    """Publica por MQTT los mensajes que REST no pudo entregar.
+    """Uso MQTT para recuperar los paquetes que no salieron por REST.
 
-    Es la cola catch-up: no se publica el mismo mensaje por REST y MQTT si
-    REST ya confirmó su recepción. El backend deduplica por message_uid.
+    Si REST ya confirmó un paquete, no lo vuelvo a enviar por MQTT.
     """
     if not enabled or client is None or not client.is_connected():
         return 0
@@ -410,11 +406,10 @@ def publish_pending_aggregate_mqtt(client: Any, con: sqlite3.Connection,
 
 def notify_brigadista_lora(aggregate: dict[str, Any], lora_enabled: bool,
                            lora_channel: VirtualRadioChannel) -> bool:
-    """Envía un resumen compacto directamente al brigadista.
+    """Mando un resumen corto al brigadista cuando no hay red.
 
-    Este canal no reenvía datos al backend. Cuando no hay WiFi/MQTT, cada
-    ciclo manda un resumen por bridge; si hay emergencia, el mismo ciclo se
-    identifica como `emergency_event` y conserva prioridad crítica.
+    LoRa no reemplaza el envío al backend; solo permite avisar mientras la
+    conexión principal está caída.
     """
     if not lora_enabled:
         return False
@@ -469,11 +464,9 @@ def publish_pending_batches(client: Any, con: sqlite3.Connection, enabled: bool,
                             bridge_state: dict[str, bool], lora_state: dict[str, bool],
                             mesh_state: bool, lora_channel: VirtualRadioChannel,
                             mesh_channel: VirtualRadioChannel) -> int:
-    """Publica un paquete por ciclo y conserva la cola si falta una ruta.
+    """Intento sacar un paquete de la cola y lo dejo guardado si no hay ruta.
 
-    El radio virtual solo simula el acuse de cada bridge con un marcador corto;
-    no intenta meter el JSON agregado completo en el límite de una trama LoRa.
-    El paquete grande se envía por MQTT desde el bridge hacia HiveMQ.
+    El radio virtual solo representa el acuse y la ruta de comunicación.
     """
     if not enabled or client is None or not client.is_connected():
         return 0
@@ -691,9 +684,9 @@ def command_loop(state: dict[str, Any], con: sqlite3.Connection, stop: threading
                 if node_id in state["anomalies"] and sensor:
                     if parts[0] == "anomaly":
                         state["anomalies"][node_id].add(sensor)
-                        # Wake the producer immediately. The event still goes
-                        # through the same outbox, LoRa/mesh fallback and QoS 1
-                        # MQTT path, but it does not wait for the next period.
+                        # Despierto el productor para no esperar los 30 segundos.
+                        # La emergencia sigue usando la misma cola y las mismas
+                        # rutas de salida.
                         state["wake_event"].set()
                     else:
                         state["anomalies"][node_id].discard(sensor)
@@ -828,7 +821,7 @@ def main() -> None:
             aggregate = aggregate_readings(
                 all_readings, BUILDING_ID, args.interval, sequence, NODES)
             save_aggregate_outbox(con, aggregate)
-            # REST es la ruta de datos nuevos; MQTT queda para recuperar la cola.
+            # REST lleva los datos nuevos y MQTT queda para recuperar lo pendiente.
             api_published = publish_pending_api(
                 con, args.api_url, args.api_token, args.api_timeout,
                 only_uids={aggregate["message_uid"]})
@@ -868,8 +861,8 @@ def main() -> None:
                 "SELECT COUNT(*) FROM aggregate_outbox WHERE status='pending'"
             ).fetchone()[0]
             print(f"cycle={sequence:05d} | generated={len(all_readings):02d} readings | rest_realtime={api_published:02d} | mqtt_catchup={mqtt_recovered:02d} | pending_api={api_pending:04d} | lora_summary={'ON' if lora_summary else 'OFF'} | mqtt={'ON' if enabled else 'OFF'}")
-            # A normal cycle waits 30 s. An anomaly command sets wake_event,
-            # which interrupts this wait and starts the emergency cycle now.
+            # En un ciclo normal espero el intervalo. El comando de emergencia
+            # despierta este hilo para enviar la lectura de inmediato.
             state["wake_event"].wait(args.interval)
             state["wake_event"].clear()
     except KeyboardInterrupt:
