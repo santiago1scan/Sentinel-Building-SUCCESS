@@ -84,8 +84,9 @@ services:
     volumes:
       - bridge_data:/app/data_bridge
     depends_on:
-      - mock-backend
-    command: python bridge/bridge_service.py --api-url http://mock-backend:8000 --listen-port 8766 --data-dir /app/data_bridge
+      monolito-escucha:
+        condition: service_started
+    command: python bridge/bridge_service.py --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate --listen-port 8766 --data-dir /app/data_bridge
 
   mqtt-sensor-simulator:
     build:
