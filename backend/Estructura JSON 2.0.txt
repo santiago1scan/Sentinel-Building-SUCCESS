@@ -1,0 +1,108 @@
+
+{
+  "schema_version": "2.0",
+  "message_uid": "MESSAGE_UUID",
+  "message_type": "telemetry_aggregate",
+
+  "building_uid": "BUILDING_UUID",
+  "building_code": "SB-001",
+
+  "generated_at": "2026-10-21T16:05:00Z",
+  "sent_at": "2026-10-21T16:05:01Z",
+  "sequence_number": 105,
+
+  "priority": "normal",
+  "quality": "valid",
+  "delivery_policy": "periodic",
+
+  "delivery_status": "realtime",
+  "transport": "rest",
+
+  "window": {
+    "start": "2026-10-21T16:04:30Z",
+    "end": "2026-10-21T16:05:00Z",
+    "duration_seconds": 30,
+    "sample_count": 8
+  },
+
+  "bridges": [
+    {
+      "node_uid": "BRIDGE_1_UUID",
+      "node_code": "NODE-FLOOR-1",
+      "node_name": "Bridge 1 - Floor 1",
+      "floor": 1,
+      "zone_uid": "ZONE_1_UUID",
+      "zone_code": "FLOOR-1",
+
+      "sensors": [
+        {
+          "sensor_uid": "SENSOR_UUID",
+          "sensor_code": "TEMP-NODE-FLOOR-1",
+          "sensor_model": "MLX90640",
+          "measurement_type": "temperature",
+          "sample_count": 1,
+          "data": {
+            "average_avg_c": 24.6,
+            "maximum_avg_c": 26.1,
+            "maximum_c": 26.4,
+            "hot_pixels_max": 3,
+            "matrix_size": "8x8"
+          }
+        },
+        {
+          "sensor_uid": "SENSOR_UUID",
+          "sensor_code": "AIR-NODE-FLOOR-1",
+          "sensor_model": "BME680",
+          "measurement_type": "air_quality",
+          "sample_count": 1,
+          "data": {
+            "temperature_avg_c": 24.2,
+            "humidity_avg_percent": 58.4,
+            "pressure_avg_hpa": 1012.7,
+            "iaq_avg": 42,
+            "tvoc_avg_ppb": 115
+          }
+        },
+        {
+          "sensor_uid": "SENSOR_UUID",
+          "sensor_code": "ACC-NODE-FLOOR-1",
+          "sensor_model": "MPU6050",
+          "measurement_type": "motion",
+          "sample_count": 1,
+          "data": {
+            "x_avg_g": 0.02,
+            "y_avg_g": 0.01,
+            "z_avg_g": 1.01,
+            "rms_avg_g": 0.98,
+            "rms_max_g": 1.02,
+            "frequency_avg_hz": 50
+          }
+        },
+        {
+          "sensor_uid": "SENSOR_UUID",
+          "sensor_code": "POWER-NODE-FLOOR-1",
+          "sensor_model": "INA219",
+          "measurement_type": "electrical",
+          "sample_count": 1,
+          "data": {
+            "voltage_avg_v": 12.08,
+            "voltage_min_v": 11.94,
+            "voltage_max_v": 12.15,
+            "current_avg_ma": 420,
+            "power_avg_mw": 5073.6,
+            "battery_low": false
+          }
+        }
+      ]
+    },
+    {
+      "node_uid": "BRIDGE_2_UUID",
+      "node_code": "NODE-FLOOR-2",
+      "node_name": "Bridge 2 - Floor 2",
+      "floor": 2,
+      "zone_uid": "ZONE_2_UUID",
+      "zone_code": "FLOOR-2",
+      "sensors": []
+    }
+  ]
+}

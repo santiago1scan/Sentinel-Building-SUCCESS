@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: success_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentinel-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  monolito-escucha:
+    build:
+      context: ./backend/monolito-escucha
+      dockerfile: Dockerfile
+    container_name: monolito_escucha
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_ENV: development
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./backend/monolito-escucha:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sentinel-net
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
+
+  mock-backend:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: sentinel-mock-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - sentinel-net
+    command: python -m uvicorn mock_backend.fastapi_app:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  bridge:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: sentinel-bridge
+    restart: unless-stopped
+    ports:
+      - "8766:8766"
+    networks:
+      - sentinel-net
+    volumes:
+      - bridge_data:/app/data_bridge
+    depends_on:
+      mock-backend:
+        condition: service_healthy
+    command: python bridge/bridge_service.py --api-url http://mock-backend:8000 --listen-port 8766 --data-dir /app/data_bridge
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8766/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  mqtt-sensor-simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: sentinel-mqtt-simulator
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+    volumes:
+      - simulator_data:/app/data_sensor_simulator
+    depends_on:
+      bridge:
+        condition: service_healthy
+    command: python mqtt_sensor_simulator.py --bridge-url http://bridge:8766 --interval 30 --data-dir /app/data_sensor_simulator
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  postgres_data:
+  bridge_data:
+  simulator_data:
+
+networks:
+  sentinel-net:
+    driver: bridge

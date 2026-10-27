@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.db-shm
+*.db-wal
+data_*/
+.env
+*.local.json
+.git/
+.gitignore
+README.md
+.pytest_cache/
+.idea/
+*.egg-info/
+dist/
+build/
