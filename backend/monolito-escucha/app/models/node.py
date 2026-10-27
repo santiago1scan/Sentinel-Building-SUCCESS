@@ -41,7 +41,7 @@ class Node(Base):
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     zone_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     registered_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text("CURRENT_TIMESTAMP"))
-    ip_address: Mapped[object | None] = mapped_column(INET)
+    ip_address: Mapped[str | None] = mapped_column(INET)
     local_storage_mb: Mapped[decimal.Decimal | None] = mapped_column(Numeric(12, 2))
     last_signal_received_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
 

@@ -24,6 +24,7 @@ from app.services.node_service import NodeService
 from app.services.reading_service import ReadingService
 from app.services.sensor_service import SensorService
 from app.services.sensor_type_service import SensorTypeService
+from app.services.telemetry_service import TelemetryService
 from app.services.zone_service import ZoneService
 
 
@@ -147,3 +148,21 @@ async def get_app_role_service(
     repo: AppRoleRepository = Depends(get_app_role_repo),
 ) -> AsyncGenerator[AppRoleService, None]:
     yield AppRoleService(repo)
+
+
+async def get_telemetry_service(
+    building_repo: BuildingRepository = Depends(get_building_repo),
+    zone_repo: ZoneRepository = Depends(get_zone_repo),
+    node_repo: NodeRepository = Depends(get_node_repo),
+    sensor_repo: SensorRepository = Depends(get_sensor_repo),
+    sensor_type_repo: SensorTypeRepository = Depends(get_sensor_type_repo),
+    reading_repo: ReadingRepository = Depends(get_reading_repo),
+) -> AsyncGenerator[TelemetryService, None]:
+    yield TelemetryService(
+        building_repo,
+        zone_repo,
+        node_repo,
+        sensor_repo,
+        sensor_type_repo,
+        reading_repo,
+    )

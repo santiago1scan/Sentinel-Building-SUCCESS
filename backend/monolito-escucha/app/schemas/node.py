@@ -1,8 +1,9 @@
 """Node schemas."""
 import datetime
 import decimal
+from ipaddress import IPv4Address
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class NodeBase(BaseModel):
@@ -32,3 +33,10 @@ class NodeRead(NodeBase):
 
     node_id: int
     registered_at: datetime.datetime
+
+    @field_validator("ip_address", mode="before")
+    @classmethod
+    def convert_ip_address(cls, v):
+        if isinstance(v, IPv4Address):
+            return str(v)
+        return v

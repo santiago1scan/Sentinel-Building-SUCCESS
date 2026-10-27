@@ -9,6 +9,7 @@ from app.api.routes import (
     readings,
     sensor_types,
     sensors,
+    telemetry,
     zones,
 )
 
@@ -23,4 +24,5 @@ __all__ = [
     "connectivity_logs",
     "app_users",
     "app_roles",
+    "telemetry",
 ]

@@ -19,22 +19,53 @@ from app.api.routes import (
     readings,
     sensor_types,
     sensors,
+    telemetry,
     zones,
 )
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
+from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
+from app.services.mqtt_consumer_service import MQTTConsumerService
 from app.schemas.common import (
     ErrorDetail,
     create_error_response,
     create_validation_error_response,
 )
 
+# Global MQTT consumer
+_mqtt_consumer: MQTTConsumerService | None = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
+    global _mqtt_consumer
+
+    # Initialize database
     await init_db()
+
+    # Initialize MQTT handler and consumer
+    try:
+        mqtt_handler = await initialize_mqtt_handler()
+
+        _mqtt_consumer = MQTTConsumerService(
+            broker_host="mosquitto",
+            broker_port=1883,
+        )
+        _mqtt_consumer.set_message_handler(create_async_message_handler(mqtt_handler))
+        _mqtt_consumer.start()
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"⚠️  No se pudo inicializar MQTT Consumer: {e}")
+
     yield
+
+    # Cleanup
+    if _mqtt_consumer:
+        _mqtt_consumer.stop()
+
     await close_db()
 
 
@@ -182,6 +213,7 @@ app.include_router(alerts.router)
 app.include_router(connectivity_logs.router)
 app.include_router(app_users.router)
 app.include_router(app_roles.router)
+app.include_router(telemetry.router)
 
 
 @app.get("/")

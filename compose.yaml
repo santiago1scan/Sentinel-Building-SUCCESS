@@ -1,4 +1,23 @@
 services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: sentinel-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - sentinel-net
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-t", "$$SYS/#", "-C", "1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   postgres:
     image: postgres:16
     container_name: success_db
@@ -51,12 +70,6 @@ services:
     networks:
       - sentinel-net
     command: python -m uvicorn mock_backend.fastapi_app:app --host 0.0.0.0 --port 8000
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
 
   bridge:
     build:
@@ -71,15 +84,8 @@ services:
     volumes:
       - bridge_data:/app/data_bridge
     depends_on:
-      mock-backend:
-        condition: service_healthy
+      - mock-backend
     command: python bridge/bridge_service.py --api-url http://mock-backend:8000 --listen-port 8766 --data-dir /app/data_bridge
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8766/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
 
   mqtt-sensor-simulator:
     build:
@@ -91,10 +97,11 @@ services:
       - sentinel-net
     volumes:
       - simulator_data:/app/data_sensor_simulator
+      - ./simulator/run_simulator.sh:/app/run_simulator.sh:ro
     depends_on:
-      bridge:
+      mosquitto:
         condition: service_healthy
-    command: python mqtt_sensor_simulator.py --bridge-url http://bridge:8766 --interval 30 --data-dir /app/data_sensor_simulator
+    command: bash /app/run_simulator.sh
     environment:
       - PYTHONUNBUFFERED=1
 
@@ -102,6 +109,8 @@ volumes:
   postgres_data:
   bridge_data:
   simulator_data:
+  mosquitto_data:
+  mosquitto_logs:
 
 networks:
   sentinel-net:

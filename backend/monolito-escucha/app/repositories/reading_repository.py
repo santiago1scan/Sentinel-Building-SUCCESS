@@ -16,9 +16,17 @@ class ReadingRepository(BaseRepository[Reading, Reading, Reading]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_by_receiving_node(self, receiving_node_id: int) -> Sequence[Reading]:
-        """Get readings by receiving node ID."""
-        stmt = select(Reading).where(Reading.receiving_node_id == receiving_node_id).order_by(Reading.measured_at.desc())
+    async def get_by_receiving_node(
+        self, receiving_node_id: int, limit: int = 100, offset: int = 0
+    ) -> Sequence[Reading]:
+        """Get readings by receiving node ID with pagination."""
+        stmt = (
+            select(Reading)
+            .where(Reading.receiving_node_id == receiving_node_id)
+            .order_by(Reading.measured_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
