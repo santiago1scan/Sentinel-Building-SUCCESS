@@ -212,7 +212,7 @@ class BridgeRuntime:
         outgoing["delivery_status"] = "realtime"
         outgoing["transport"] = "rest"
         outgoing["sent_at"] = now_utc()
-        path = "/api/v1/events/emergency" if outgoing["priority"] != "normal" else "/api/v1/telemetry/realtime"
+        path = self.args.api_path
         headers = {"Content-Type": "application/json"}
         if self.args.api_token:
             headers["Authorization"] = f"Bearer {self.args.api_token}"
@@ -358,6 +358,10 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=30.0)
     parser.add_argument("--data-dir", default="data_bridge")
     parser.add_argument("--api-url", default=os.getenv("SENTINEL_API_URL"))
+    parser.add_argument(
+        "--api-path",
+        default=os.getenv("SENTINEL_API_PATH", "/api/v1/telemetry/aggregate"),
+    )
     parser.add_argument("--api-token", default=os.getenv("SENTINEL_API_TOKEN"))
     parser.add_argument("--api-timeout", type=float, default=10.0)
     parser.add_argument("--mqtt-host", default=os.getenv("SENTINEL_MQTT_HOST"))
