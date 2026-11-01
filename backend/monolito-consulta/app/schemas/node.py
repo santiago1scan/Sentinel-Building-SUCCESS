@@ -12,7 +12,6 @@ class NodeBase(BaseModel):
     zone_id: int
     ip_address: str | None = None
     local_storage_mb: decimal.Decimal | None = None
-    last_signal_received_at: datetime.datetime | None = None
 
 
 class NodeCreate(NodeBase):
@@ -25,7 +24,6 @@ class NodeUpdate(BaseModel):
     zone_id: int | None = None
     ip_address: str | None = None
     local_storage_mb: decimal.Decimal | None = None
-    last_signal_received_at: datetime.datetime | None = None
 
 
 class NodeRead(NodeBase):
@@ -33,6 +31,8 @@ class NodeRead(NodeBase):
 
     node_id: int
     registered_at: datetime.datetime
+    # Lo actualiza el sistema al recibir señal del nodo; no lo envía el cliente.
+    last_signal_received_at: datetime.datetime | None = None
 
     @field_validator("ip_address", mode="before")
     @classmethod

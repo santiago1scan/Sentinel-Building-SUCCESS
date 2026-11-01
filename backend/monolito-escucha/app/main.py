@@ -1,4 +1,4 @@
-"""Main FastAPI application."""
+"""Main FastAPI application - MQTT Listener & Telemetry Processor."""
 import uuid
 from contextlib import asynccontextmanager
 
@@ -8,20 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import (
-    alerts,
-    app_roles,
-    app_users,
-    buildings,
-    connectivity_logs,
-    health,
-    nodes,
-    readings,
-    sensor_types,
-    sensors,
-    telemetry,
-    zones,
-)
+from app.api.routes import health, telemetry
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
 from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
@@ -71,7 +58,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Monolito Escucha",
-    description="API para ingesta de lecturas y gestión de alertas",
+    description="MQTT Listener & Telemetry Processor",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -201,18 +188,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-# Include routers
+# Include routers (only MQTT & Telemetry)
 app.include_router(health.router)
-app.include_router(buildings.router)
-app.include_router(zones.router)
-app.include_router(nodes.router)
-app.include_router(sensor_types.router)
-app.include_router(sensors.router)
-app.include_router(readings.router)
-app.include_router(alerts.router)
-app.include_router(connectivity_logs.router)
-app.include_router(app_users.router)
-app.include_router(app_roles.router)
 app.include_router(telemetry.router)
 
 
@@ -221,6 +198,7 @@ async def root():
     """Root endpoint."""
     return {
         "name": "Monolito Escucha",
+        "description": "MQTT Listener & Telemetry Processor",
         "version": "0.1.0",
         "docs": "/docs",
         "health": "/health",

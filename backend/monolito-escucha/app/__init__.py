@@ -1,1 +1,1 @@
-"""Monolito Escucha - FastAPI application for readings and alerts."""
+"""Monolito Consulta application package."""

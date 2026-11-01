@@ -23,11 +23,9 @@ logger = logging.getLogger(__name__)
 class MQTTMessageHandler:
     """Handler for processing MQTT telemetry messages."""
 
-    def __init__(self, db_engine):
-        self.db_engine = db_engine
-        self.AsyncSessionLocal = sessionmaker(
-            self.db_engine, class_=AsyncSession, expire_on_commit=False
-        )
+    def __init__(self, database_url: str):
+        self.database_url = database_url
+        self.AsyncSessionLocal = None
         self.message_queue = queue.Queue()
         self.worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
         self.worker_thread.start()
@@ -36,6 +34,13 @@ class MQTTMessageHandler:
         """Process messages from queue sequentially."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
+        # El engine debe crearse dentro del loop del worker: sus conexiones
+        # quedan ligadas al loop donde se crearon.
+        db_engine = create_async_engine(self.database_url, echo=False)
+        self.AsyncSessionLocal = sessionmaker(
+            db_engine, class_=AsyncSession, expire_on_commit=False
+        )
 
         while True:
             try:
@@ -93,8 +98,7 @@ async def initialize_mqtt_handler() -> MQTTMessageHandler:
     global _mqtt_handler
 
     try:
-        db_engine = create_async_engine(settings.database_url, echo=False)
-        _mqtt_handler = MQTTMessageHandler(db_engine)
+        _mqtt_handler = MQTTMessageHandler(settings.database_url)
         logger.info("✅ MQTT Handler inicializado")
         return _mqtt_handler
     except Exception as e:

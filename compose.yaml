@@ -59,6 +59,26 @@ services:
     command: >
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
 
+  monolito-consulta:
+    build:
+      context: ./backend/monolito-consulta
+      dockerfile: Dockerfile
+    image: sentinel-monolito-consulta:latest
+    container_name: monolito_consulta
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_ENV: development
+    ports:
+      - "8090:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sentinel-net
+    # Sin "alembic upgrade head": escucha ya versiona la BD compartida (alembic_version).
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8089
+
   mock-backend:
     build:
       context: ./simulator
