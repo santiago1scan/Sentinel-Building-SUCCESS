@@ -28,14 +28,6 @@ class NodeAuthService:
             raise UnauthorizedError("Node token revoked")
         return node
 
-    async def authenticate_mqtt(self, username: str, token: str) -> Node:
-        """Validate broker credentials: the MQTT username must be the node that owns the token."""
-        node = await self.authenticate(token)
-        if node.code != username:
-            logger.warning(f"Rechazo MQTT: usuario '{username}' no corresponde al token del nodo {node.code}")
-            raise UnauthorizedError("Username does not match node token")
-        return node
-
     @staticmethod
     def ensure_owns_bridges(node: Node, bridge_codes: Iterable[str]) -> None:
         """A node may only report telemetry for itself, never for another bridge."""

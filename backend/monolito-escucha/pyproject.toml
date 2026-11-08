@@ -1,38 +1,12 @@
-[build-system]
-requires = ["setuptools>=65.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "monolito-consulta"
+name = "monolito-escucha"
 version = "0.1.0"
-description = "API para consultas y análisis de datos - Sentinel Builder"
-readme = "README.md"
+description = "Monolito de escucha: recibe telemetría por REST y MQTT"
 requires-python = ">=3.12"
-license = {text = "MIT"}
-authors = [
-    {name = "Sentinel Builder Team"}
-]
 
-dependencies = [
-    "fastapi==0.104.1",
-    "uvicorn[standard]==0.24.0",
-    "sqlalchemy==2.0.23",
-    "asyncpg==0.29.0",
-    "pydantic==2.5.0",
-    "pydantic-settings==2.1.0",
-    "alembic==1.12.1",
-    "python-dotenv==1.0.0",
-    "httpx==0.25.1",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest==7.4.3",
-    "pytest-asyncio==0.21.1",
-    "black==23.12.0",
-    "ruff==0.1.8",
-    "mypy==1.7.1",
-]
+# Las dependencias viven en requirements.txt (ejecución) y requirements-dev.txt (pruebas),
+# con versiones fijadas. Son la fuente que usan el Dockerfile y la CI.
+# Este archivo no se instala como paquete: solo configura las herramientas.
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

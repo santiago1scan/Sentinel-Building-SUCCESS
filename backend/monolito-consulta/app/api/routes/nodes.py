@@ -21,6 +21,15 @@ async def create_node(
     return await service.create(node_in)
 
 
+@router.post("/{node_id}/revoke", status_code=204)
+async def revoke_node(
+    node_id: int,
+    service: NodeService = Depends(get_node_service),
+):
+    """Revoca el nodo: su cliente en el broker queda deshabilitado y su sesión se corta."""
+    await service.revoke(node_id)
+
+
 @router.get("", response_model=Sequence[NodeRead])
 async def list_nodes(
     limit: int = Query(100, ge=1, le=1000),

@@ -1,6 +1,9 @@
 """Node service."""
+import asyncio
+import datetime
 from collections.abc import Sequence
 
+from app.core.broker_admin import BrokerAdmin, BrokerAdminError
 from app.core.exceptions import NotFoundError, ServiceUnavailableError
 from app.core.security import generate_node_token, hash_token
 from app.repositories.node_repository import NodeRepository
@@ -11,10 +14,17 @@ from app.schemas.sensor import SensorRead
 
 
 class NodeService:
-    def __init__(self, repository: NodeRepository):
+    def __init__(self, repository: NodeRepository, broker: BrokerAdmin | None = None):
         self.repository = repository
+        self.broker = broker
+
+    def _require_broker(self) -> BrokerAdmin:
+        if self.broker is None:
+            raise ServiceUnavailableError("El broker MQTT no está configurado para administrar nodos")
+        return self.broker
 
     async def create(self, node_in: NodeCreate) -> NodeCreateResponse:
+        broker = self._require_broker()
         token = generate_node_token()
         data = node_in.model_dump()
         data["token_hash"] = hash_token(token)
@@ -22,8 +32,26 @@ class NodeService:
             node = await self.repository.create(data)
         except Exception as e:
             raise ServiceUnavailableError(f"Failed to create node: {e}") from e
+        # Si el broker rechaza el cliente, la excepción revierte la fila del nodo (get_db).
+        try:
+            await asyncio.to_thread(broker.create_node, node.code, token)
+        except BrokerAdminError as e:
+            raise ServiceUnavailableError(f"No se pudo registrar el nodo en el broker: {e}") from e
         # El token en claro solo existe en esta respuesta; no se puede recuperar después.
         return NodeCreateResponse.model_validate({**NodeRead.model_validate(node).model_dump(), "token": token})
+
+    async def revoke(self, node_id: int) -> None:
+        """Deshabilita el cliente en el broker (corta la sesión activa) y marca el nodo como revocado."""
+        broker = self._require_broker()
+        node = await self.repository.get(node_id)
+        if not node:
+            raise NotFoundError(f"Node with id {node_id} not found")
+        try:
+            await asyncio.to_thread(broker.disable_node, node.code)
+        except BrokerAdminError as e:
+            raise ServiceUnavailableError(f"No se pudo revocar el nodo en el broker: {e}") from e
+        node.revoked_at = datetime.datetime.now(datetime.UTC)
+        await self.repository.session.flush()
 
     async def get(self, node_id: int) -> NodeRead:
         node = await self.repository.get(node_id)

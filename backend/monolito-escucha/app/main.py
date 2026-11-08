@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import auth, health, telemetry
+from app.api.routes import health, telemetry
+from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
 from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
@@ -36,8 +37,10 @@ async def lifespan(app: FastAPI):
         mqtt_handler = await initialize_mqtt_handler()
 
         _mqtt_consumer = MQTTConsumerService(
-            broker_host="mosquitto",
-            broker_port=1883,
+            broker_host=settings.mqtt_host,
+            broker_port=settings.mqtt_port,
+            username=settings.mqtt_username,
+            password=settings.mqtt_password,
         )
         _mqtt_consumer.set_message_handler(create_async_message_handler(mqtt_handler))
         _mqtt_consumer.start()
@@ -191,7 +194,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 # Include routers (only MQTT & Telemetry)
 app.include_router(health.router)
 app.include_router(telemetry.router)
-app.include_router(auth.router)
 
 
 @app.get("/")

@@ -15,5 +15,11 @@ class Settings(BaseSettings):
     database_url: str
     app_env: str = "development"
 
+    # Cuenta del consumidor MQTT en el broker (permiso de solo lectura sobre telemetría).
+    mqtt_host: str = "mosquitto"
+    mqtt_port: int = 1883
+    mqtt_username: str | None = None
+    mqtt_password: str | None = None
+
 
 settings = Settings()

@@ -1,0 +1,11 @@
+# Dependencias de desarrollo y pruebas de monolito-consulta.
+-r requirements.txt
+coverage==7.17.0
+iniconfig==2.3.1
+mypy==1.11.2
+mypy_extensions==1.1.0
+pluggy==1.7.0
+pytest==8.3.5
+pytest-asyncio==0.23.8
+pytest-cov==6.0.0
+ruff==0.6.9

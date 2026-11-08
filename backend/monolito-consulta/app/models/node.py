@@ -46,6 +46,7 @@ class Node(Base):
     local_storage_mb: Mapped[decimal.Decimal | None] = mapped_column(Numeric(12, 2))
     last_signal_received_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
     token_hash: Mapped[str | None] = mapped_column(String(64))
+    revoked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
 
     zone: Mapped["Zone"] = relationship("Zone", back_populates="nodes")
     sensors: Mapped[list["Sensor"]] = relationship("Sensor", back_populates="primary_node")

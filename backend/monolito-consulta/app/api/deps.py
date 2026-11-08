@@ -4,6 +4,8 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.broker_admin import BrokerAdmin
+from app.core.config import settings
 from app.core.database import get_db
 from app.repositories.alert_repository import AlertRepository
 from app.repositories.app_role_repository import AppRoleRepository
@@ -102,10 +104,23 @@ async def get_zone_service(
     yield ZoneService(repo)
 
 
+def get_broker_admin() -> BrokerAdmin | None:
+    """Cliente de administración del broker, o None si no hay cuenta configurada."""
+    if not settings.mqtt_admin_username or not settings.mqtt_admin_password:
+        return None
+    return BrokerAdmin(
+        host=settings.mqtt_host,
+        port=settings.mqtt_port,
+        username=settings.mqtt_admin_username,
+        password=settings.mqtt_admin_password,
+        building_code=settings.building_code,
+    )
+
+
 async def get_node_service(
     repo: NodeRepository = Depends(get_node_repo),
 ) -> AsyncGenerator[NodeService, None]:
-    yield NodeService(repo)
+    yield NodeService(repo, broker=get_broker_admin())
 
 
 async def get_sensor_type_service(
