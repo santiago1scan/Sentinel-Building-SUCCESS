@@ -1,0 +1,301 @@
+# Panel de simulación de escenarios de desastre
+
+Este panel independiente permite generar escenarios sintéticos de incendio,
+terremoto y caída de energía con el simulador existente. El panel inicia y
+administra su propio proceso de `mqtt_sensor_simulator.py`; no puede enviar
+comandos a una instancia del simulador iniciada en otra terminal.
+
+El flujo de datos existente se mantiene sin cambios:
+
+```text
+mqtt_sensor_simulator.py
+    -> POST local /v1/readings
+    -> bridge
+    -> SQLite
+    -> agregación y JSON schema_version 1.0
+    -> REST
+    -> backend
+    -> dashboard principal
+```
+
+El panel no modifica el contrato JSON ni requiere instalar dependencias nuevas.
+Utiliza únicamente la biblioteca estándar de Python. El proyecto sigue
+necesitando sus dependencias existentes para ejecutar el backend, el bridge y
+el simulador en sus modos correspondientes.
+
+## Archivos
+
+- `scenario_server.py`: servidor HTTP, controlador del proceso del simulador y
+  lector de métricas de SQLite en modo de solo lectura.
+- `scenario_index.html`: interfaz local con CSS y JavaScript incluidos.
+- `README_ESCENARIOS.md`: estas instrucciones.
+
+## Escenarios
+
+| Escenario | Sensores | Efectos sintéticos del simulador | Nodos |
+|---|---|---|---|
+| Incendio (`fire`) | GRID-EYE (AMG8833) y BME688 | GRID-EYE genera píxeles centrales de 45–60 °C. BME688 genera temperatura de 30–42 °C, humedad de 70–90 %, IAQ de 250–500 y TVOC de 900–3000 ppb. Prioridad `high`. | Piso 1, Piso 2 o ambos; ambos aparecen seleccionados por defecto. |
+| Terremoto (`earthquake`) | ADXL355 | Genera vibración anómala con RMS de 0,25–0,8 g y frecuencia de 1–8 Hz. Prioridad `critical`. | Ambos pisos aparecen seleccionados por defecto; se puede elegir un piso. |
+| Caída de energía (`power_failure`) | INA219 | Genera voltaje de 10,2–11,0 V, alimentación por batería y `battery_low` cuando el voltaje es inferior a 11 V. Prioridad `critical`. | Se debe elegir exactamente un nodo. |
+
+Un escenario puede ejecutarse manualmente hasta pulsar **Stop all / Return to
+normal**, o por una cantidad de segundos configurada en la tarjeta. Solo puede
+haber un escenario activo a la vez: al activar otro, el panel envía primero los
+comandos `clear` del escenario anterior.
+
+Hay aproximadamente 300 ms entre los comandos de anomalía. Cada comando
+`anomaly` despierta el ciclo del simulador. Por ello, el primer agregado de
+emergencia puede contener solo el primer sensor activado; el ciclo siguiente
+puede contener todos los sensores del escenario.
+
+## Requisitos y puertos
+
+- Python disponible como `python` en PowerShell.
+- Para este panel no se instala ningún paquete adicional.
+- Panel: `http://127.0.0.1:8790`
+- Backend de prueba: `http://127.0.0.1:8000`
+- Bridge: `http://127.0.0.1:8766`
+- Dashboard principal: `http://127.0.0.1:8780`
+
+Las rutas relativas de los argumentos se interpretan desde la raíz del
+proyecto, independientemente del directorio actual de PowerShell.
+
+## Orden de arranque
+
+Abre cuatro ventanas de PowerShell desde la raíz del proyecto y ejecuta los
+comandos en este orden. Deja cada proceso activo en su terminal.
+
+### 1. Backend de prueba
+
+```powershell
+python -m uvicorn mock_backend.fastapi_app:app --host 127.0.0.1 --port 8000
+```
+
+### 2. Bridge
+
+```powershell
+python .\bridge\bridge_service.py `
+  --api-url "http://127.0.0.1:8000" `
+  --listen-host 127.0.0.1 `
+  --listen-port 8766 `
+  --data-dir "data_bridge"
+```
+
+### 3. Dashboard principal
+
+```powershell
+python .\dashboard_server.py `
+  --host 127.0.0.1 `
+  --port 8780 `
+  --data-dir "data_bridge"
+```
+
+### 4. Panel de escenarios
+
+```powershell
+python .\scenario_panel\scenario_server.py `
+  --host 127.0.0.1 `
+  --port 8790 `
+  --bridge-url "http://127.0.0.1:8766" `
+  --bridge-port 8766 `
+  --interval 30 `
+  --simulator-data-dir "data_sensor_simulator" `
+  --data-dir "data_bridge"
+```
+
+Abre el panel en:
+
+```text
+http://127.0.0.1:8790
+```
+
+Usa **Start simulator** en el panel para iniciar el simulador. No arranques
+`mqtt_sensor_simulator.py` manualmente en otra terminal: solo la instancia que
+inició el panel es controlable desde sus botones. El enlace **Open main
+dashboard** abre `http://127.0.0.1:8780`.
+
+Los argumentos disponibles del panel incluyen `--host`, `--port`,
+`--bridge-url`, `--bridge-port`, `--interval`, `--simulator-data-dir` y
+`--data-dir`. Para ver su ayuda:
+
+```powershell
+python .\scenario_panel\scenario_server.py --help
+```
+
+## Cómo activar y detener escenarios
+
+1. Pulsa **Start simulator**.
+2. En la tarjeta del escenario, elige el nodo o nodos afectados.
+3. Elige **Manual stop** o **Automatic** e indica una duración entera positiva
+   en segundos para el modo automático.
+4. Pulsa el botón de activación de la tarjeta.
+5. Observa el estado y la prioridad en el panel, y abre el dashboard principal
+   para revisar las tarjetas de sensores.
+6. Pulsa **Stop all / Return to normal** para enviar `clear` a todas las
+   combinaciones nodo-sensor admitidas por el simulador.
+7. Si también quieres finalizar el proceso, pulsa **Stop simulator**.
+
+En la API del panel, las rutas son:
+
+- `GET /`: interfaz del panel.
+- `GET /api/status`: estado, escenario activo, registros, métricas del bridge y
+  advertencias.
+- `POST /api/scenario/start`: activa `fire`, `earthquake` o `power_failure`.
+- `POST /api/scenario/stop`: detiene el escenario y limpia todas las
+  combinaciones de nodos y sensores.
+- `POST /api/simulator/start`: inicia el simulador.
+- `POST /api/simulator/stop`: limpia anomalías, envía `quit` y detiene el
+  simulador; si no responde, intenta terminar el proceso.
+
+Ejemplo de activación por PowerShell, con el panel ya en ejecución:
+
+```powershell
+$body = @{
+  scenario = "power_failure"
+  nodes = @("NODE-FLOOR-1")
+  duration_s = 45
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:8790/api/scenario/start" `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+Para un escenario manual, establece `duration_s` en `$null`. La caída de energía
+requiere exactamente un nodo. En incendio y terremoto, la API usa ambos nodos
+por defecto si se recibe una lista vacía.
+
+## Verificación de aceptación
+
+Realiza las pruebas con el backend, el bridge, el dashboard y el panel
+ejecutándose en ese orden. Inicia el simulador desde el panel antes de activar
+cualquier escenario.
+
+1. **Panel e inicio del simulador:** abre `http://127.0.0.1:8790` y pulsa
+   **Start simulator**. Comprueba que el indicador muestre **Simulator running**
+   y que aparezcan líneas de salida del proceso.
+2. **Incendio:** activa **Fire** en ambos pisos. Revisa las tarjetas GRID-EYE y
+   BME688 del dashboard en `http://127.0.0.1:8780`. Comprueba en el backend
+   que se recibió un agregado con prioridad `high`. El primer ciclo puede
+   incluir solo uno de los sensores porque el simulador se despierta al recibir
+   cada `anomaly`.
+3. **Terremoto:** activa **Earthquake** con ambos pisos seleccionados.
+   Comprueba que las tarjetas ADXL355 de los dos pisos indiquen la anomalía y
+   que el agregado tenga prioridad `critical`.
+4. **Caída de energía:** selecciona un solo piso y activa **Power failure**.
+   Comprueba que solo el INA219 de ese piso esté en alarma. En sus datos
+   anómalos debe aparecer `battery_low: true` cuando el voltaje generado sea
+   inferior a 11 V; el valor se selecciona aleatoriamente dentro del rango del
+   simulador.
+5. **Volver a valores normales:** pulsa **Stop all / Return to normal** y
+   espera el ciclo normal siguiente. El comando `clear` no despierta el
+   simulador, por lo que la normalización puede tardar hasta aproximadamente
+   un intervalo de muestreo (`--interval`; por defecto, 30 segundos).
+6. **Archivos existentes y contrato:** antes de probar, guarda el estado de
+   los archivos existentes. En un checkout Git, `git diff --` con las rutas
+   existentes permite comprobar que no tengan modificaciones. Para comparar
+   hashes con una referencia guardada antes de la prueba, usa `Get-FileHash`.
+   Además, revisa el JSON de un agregado almacenado o recibido: debe conservar
+   `schema_version` con valor `"1.0"`.
+7. **Sin dependencias nuevas:** no ejecutes instalaciones para el panel. El
+   servidor se implementa con la biblioteca estándar. Los paquetes ya
+   requeridos por el backend o el simulador son los que especifica el proyecto.
+
+Ejemplo de comprobación Git de los archivos existentes:
+
+```powershell
+git diff -- `
+  .\mqtt_sensor_simulator.py `
+  .\bridge\bridge_service.py `
+  .\telemetry_standard.py `
+  .\virtual_lora.py `
+  .\mock_backend\fastapi_app.py `
+  .\dashboard_server.py `
+  .\index.html
+```
+
+Para comparar hashes, guarda una referencia antes de la prueba y vuelve a
+calcularlos después. Por ejemplo:
+
+```powershell
+Get-FileHash `
+  .\mqtt_sensor_simulator.py, `
+  .\bridge\bridge_service.py, `
+  .\telemetry_standard.py, `
+  .\virtual_lora.py, `
+  .\mock_backend\fastapi_app.py, `
+  .\dashboard_server.py, `
+  .\index.html
+```
+
+## Solución de problemas
+
+### El puerto del panel está ocupado
+
+El puerto predeterminado es 8790. Si ya está en uso, inicia el panel en otro
+puerto libre, por ejemplo:
+
+```powershell
+python .\scenario_panel\scenario_server.py --port 8791
+```
+
+Después abre `http://127.0.0.1:8791`. Si el puerto no está disponible, el
+servidor muestra el error al iniciarse.
+
+### El bridge está activo o hay un simulador iniciado manualmente
+
+El panel comprueba si el puerto configurado con `--bridge-port` está activo.
+Si detecta un bridge activo pero no ha iniciado su propio simulador, muestra
+una advertencia. Si ejecutaste el simulador en otra terminal, detenlo allí
+antes de iniciar uno desde el panel. El panel no puede controlar el proceso
+manual porque no posee su `stdin`.
+
+No inicies una segunda instancia del simulador para el mismo bridge mientras
+otra siga activa.
+
+### La base del bridge no aparece
+
+El panel consulta `bridge_local.db` en el directorio indicado por `--data-dir`,
+por defecto `data_bridge`. Asegúrate de que el argumento del panel coincide con
+`--data-dir` del bridge y de haber iniciado el bridge. La base puede no existir
+hasta que el bridge la cree; el panel lo tolera y seguirá mostrando métricas
+vacías hasta que pueda leerla.
+
+La lectura de métricas abre SQLite con `mode=ro`; el panel no crea ni modifica
+la base del bridge.
+
+### El simulador no se inicia desde el panel
+
+Comprueba que:
+
+- Ejecutas el comando desde una instalación de Python capaz de ejecutar el
+  simulador.
+- El archivo `mqtt_sensor_simulator.py` está en la raíz del proyecto.
+- El bridge ya está escuchando en la URL de `--bridge-url`.
+- No hay otra instancia manual del simulador que debas detener.
+- La salida del simulador en la sección **Simulator output** no muestra errores.
+
+### No veo la alarma en el dashboard
+
+Confirma que el panel y el dashboard apuntan al mismo directorio de datos del
+bridge, que el simulador está en ejecución y que el bridge está recibiendo
+lecturas. La anomalía se comunica en un ciclo inmediato al recibirse el
+comando; después de pulsar **Stop all / Return to normal**, espera el siguiente
+ciclo normal para observar las lecturas normales.
+
+## Limitaciones conocidas
+
+- Los valores anómalos son rangos aleatorios fijos del simulador, no una
+  evolución gradual. El fuego no «crece» y el sismo no «decae». Una evolución
+  más realista exigiría modificar el simulador y queda como fase 2 opcional.
+- Los datos son sintéticos y no representan mediciones físicas certificadas.
+- La separación entre comandos de escenario es de aproximadamente 300 ms.
+  Como cada comando `anomaly` despierta un ciclo del simulador, el primer
+  agregado de emergencia puede salir con solo el primer sensor activo y el
+  siguiente ciclo puede incluir los demás.
+- El comando `clear` no despierta el ciclo del simulador. La visualización de
+  valores normales puede tardar hasta el intervalo configurado.
+- El panel solo controla la instancia del simulador que él mismo lanza; no
+  puede adjuntarse a una instancia iniciada en otra terminal.

@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101511">
+  <title>Sentinel Building — Scenario Simulator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101511;
+      --panel: #171e19;
+      --panel-soft: #1d2720;
+      --line: #334138;
+      --text: #edf2eb;
+      --muted: #a4b2a7;
+      --green: #83d09a;
+      --gold: #e4c56f;
+      --red: #f27870;
+      --blue: #86b9e8;
+      --shadow: 0 18px 48px rgb(0 0 0 / 24%);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 12% 0%, rgb(91 137 95 / 13%), transparent 34rem),
+        radial-gradient(ellipse at 90% 8%, rgb(190 154 66 / 8%), transparent 32rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    button, select, input { font: inherit; }
+
+    button, select, input[type="number"] {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #111813;
+      color: var(--text);
+    }
+
+    button {
+      min-height: 42px;
+      padding: 9px 15px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .12s ease, filter .12s ease, border-color .12s ease;
+    }
+
+    button:hover:not(:disabled) { filter: brightness(1.13); transform: translateY(-1px); }
+    button:disabled { cursor: not-allowed; opacity: .48; }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 2px solid var(--gold);
+      outline-offset: 2px;
+    }
+
+    select, input[type="number"] { width: 100%; min-height: 40px; padding: 8px 10px; }
+    a { color: var(--green); }
+
+    .page { width: min(1280px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 48px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 14px 0 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border: 1px solid #526652;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #27382b, #151d17);
+      color: var(--gold);
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+
+    .eyebrow {
+      margin: 0 0 3px;
+      color: var(--green);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 2px; font-size: clamp(1.25rem, 3vw, 1.65rem); }
+    .topbar-subtitle { margin: 0; color: var(--muted); font-size: .88rem; }
+    .dashboard-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--text);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .dashboard-link:hover { border-color: var(--green); color: var(--green); }
+
+    .hero { padding: 28px 0 20px; }
+    .hero h2 { margin-bottom: 8px; font-size: clamp(1.65rem, 4vw, 2.45rem); }
+    .hero p { max-width: 760px; margin-bottom: 0; color: var(--muted); }
+
+    .notice {
+      display: none;
+      margin: 16px 0;
+      padding: 13px 15px;
+      border: 1px solid #8a6743;
+      border-radius: 10px;
+      background: rgb(143 96 45 / 12%);
+      color: #f0d7a4;
+    }
+    .notice.visible { display: block; }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgb(23 30 25 / 88%);
+      box-shadow: var(--shadow);
+    }
+
+    .sim-state { display: flex; align-items: center; gap: 11px; }
+    .status-dot {
+      width: 11px;
+      height: 11px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: #718078;
+      box-shadow: 0 0 0 4px rgb(113 128 120 / 12%);
+    }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 0 4px rgb(131 208 154 / 13%); }
+    .status-dot.warning { background: var(--gold); box-shadow: 0 0 0 4px rgb(228 197 111 / 12%); }
+    .state-title { font-weight: 800; }
+    .state-detail { color: var(--muted); font-size: .83rem; }
+    .toolbar-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+    .button-primary { border-color: #4a7556; background: #25452f; color: #e8ffed; }
+    .button-danger { border-color: #80504c; background: #4c2928; color: #ffe5e2; }
+    .button-neutral { background: #202a23; }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 28px 0 14px;
+    }
+    .section-heading h2 { margin: 0; font-size: 1.22rem; }
+    .section-heading p { margin: 0; color: var(--muted); font-size: .86rem; }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .scenario-card {
+      display: flex;
+      flex-direction: column;
+      min-height: 310px;
+      padding: 19px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: linear-gradient(155deg, rgb(29 39 32 / 96%), rgb(20 27 22 / 98%));
+      box-shadow: var(--shadow);
+    }
+
+    .scenario-card.fire { border-top: 3px solid var(--red); }
+    .scenario-card.earthquake { border-top: 3px solid var(--gold); }
+    .scenario-card.power { border-top: 3px solid var(--blue); }
+
+    .card-title-row { display: flex; align-items: center; gap: 12px; margin-bottom: 5px; }
+    .scenario-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #111813;
+      font-size: 1.3rem;
+    }
+    .scenario-card h3 { margin: 0; font-size: 1.15rem; }
+    .scenario-card .description { min-height: 44px; margin: 8px 0 14px; color: var(--muted); font-size: .88rem; }
+    .effect {
+      margin: 0 0 15px;
+      color: #d3ddd4;
+      font-size: .82rem;
+    }
+    .effect strong { color: var(--gold); }
+
+    .field { display: grid; gap: 6px; margin: 0 0 12px; }
+    .field label { color: #c9d4ca; font-size: .8rem; font-weight: 700; }
+    .field-help { color: var(--muted); font-size: .74rem; }
+
+    .duration-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .scenario-card .activate { width: 100%; margin-top: auto; }
+    .fire .activate { border-color: #854b46; background: #512b29; }
+    .earthquake .activate { border-color: #796838; background: #44391f; }
+    .power .activate { border-color: #466d8a; background: #233c4d; }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .metric {
+      min-height: 105px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+    .metric-label { color: var(--muted); font-size: .77rem; }
+    .metric-value { display: block; margin-top: 8px; font-size: 1.45rem; font-weight: 800; }
+    .metric-value.small { font-size: 1.05rem; }
+    .metric-note { color: var(--muted); font-size: .74rem; }
+
+    .active-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+    .active-panel h3 { margin: 0 0 4px; font-size: 1rem; }
+    .active-panel p { margin: 0; color: var(--muted); font-size: .85rem; }
+    .active-timer { color: var(--gold); font-variant-numeric: tabular-nums; font-weight: 800; text-align: right; }
+
+    .logs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .log-panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #111713;
+    }
+    .log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .log-header h3 { margin: 0; font-size: .95rem; }
+    .log-content {
+      overflow: auto;
+      height: 240px;
+      margin: 0;
+      padding: 12px 15px;
+      color: #c8d6ca;
+      font: .78rem/1.6 Consolas, "Courier New", monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .empty { color: #819087; font-style: italic; }
+
+    .footer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 28px;
+      padding-top: 15px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 3;
+      max-width: min(430px, calc(100vw - 36px));
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #202a23;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+    .toast.visible { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: #86504c; color: #ffe5e2; }
+
+    @media (max-width: 980px) {
+      .scenario-grid { grid-template-columns: 1fr 1fr; }
+      .metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      .page { width: min(100% - 22px, 560px); padding-top: 14px; }
+      .topbar { align-items: flex-start; }
+      .dashboard-link { font-size: .8rem; }
+      .scenario-grid, .logs-grid { grid-template-columns: 1fr; }
+      .scenario-card { min-height: 0; }
+      .scenario-card .description { min-height: 0; }
+      .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .active-panel { grid-template-columns: 1fr; }
+      .active-timer { text-align: left; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">SB</div>
+        <div>
+          <p class="eyebrow">Sentinel Building · SUCCESS</p>
+          <h1>Disaster Scenario Simulator</h1>
+          <p class="topbar-subtitle">MVP 1 · Simulation control panel</p>
+        </div>
+      </div>
+      <a class="dashboard-link" href="http://127.0.0.1:8780" target="_blank" rel="noopener">
+        Open main dashboard <span aria-hidden="true">↗</span>
+      </a>
+    </header>
+
+    <section class="hero" aria-labelledby="intro-title">
+      <p class="eyebrow">Scenario operations</p>
+      <h2 id="intro-title">Simulate building emergencies</h2>
+      <p>
+        Activate a synthetic disaster scenario and monitor its effect as readings
+        move through the existing simulator, bridge, storage and backend pipeline.
+      </p>
+    </section>
+
+    <div id="warning" class="notice" role="status" aria-live="polite"></div>
+
+    <section class="toolbar" aria-label="Simulator controls">
+      <div class="sim-state">
+        <span id="simulatorDot" class="status-dot" aria-hidden="true"></span>
+        <div>
+          <div id="simulatorState" class="state-title">Checking simulator…</div>
+          <div id="simulatorDetail" class="state-detail">Connecting to the scenario service</div>
+        </div>
+      </div>
+      <div class="toolbar-actions">
+        <button id="startSimulator" class="button-primary" type="button">Start simulator</button>
+        <button id="stopSimulator" class="button-neutral" type="button" disabled>Stop simulator</button>
+        <button id="stopAll" class="button-danger" type="button">Stop all / Return to normal</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="scenarios-title">
+      <div class="section-heading">
+        <h2 id="scenarios-title">Choose a disaster scenario</h2>
+        <p>One scenario at a time · Changes are sent to the simulator process</p>
+      </div>
+
+      <div class="scenario-grid">
+        <article class="scenario-card fire">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">♨</div>
+            <h3>Fire</h3>
+          </div>
+          <p class="description">Elevated thermal readings and degraded air quality.</p>
+          <p class="effect"><strong>Sensors:</strong> GRID-EYE (AMG8833) + BME688</p>
+          <div class="field">
+            <label for="fireNodes">Affected nodes</label>
+            <select id="fireNodes" multiple size="2" aria-describedby="fireNodeHelp">
+              <option value="NODE-FLOOR-1" selected>Floor 1</option>
+              <option value="NODE-FLOOR-2" selected>Floor 2</option>
+            </select>
+            <span id="fireNodeHelp" class="field-help">Select one or both nodes. Use Ctrl-click to change the selection.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="fireDurationMode">Duration</label>
+              <select id="fireDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fireDuration">Seconds</label>
+              <input id="fireDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="fire">Activate fire</button>
+        </article>
+
+        <article class="scenario-card earthquake">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">⌁</div>
+            <h3>Earthquake</h3>
+          </div>
+          <p class="description">A building-wide seismic event detected by the accelerometers.</p>
+          <p class="effect"><strong>Sensor:</strong> ADXL355 · Critical priority</p>
+          <div class="field">
+            <label for="earthquakeNodes">Affected nodes</label>
+            <select id="earthquakeNodes" multiple size="2" aria-describedby="earthquakeNodeHelp">
+              <option value="NODE-FLOOR-1" selected>Floor 1</option>
+              <option value="NODE-FLOOR-2" selected>Floor 2</option>
+            </select>
+            <span id="earthquakeNodeHelp" class="field-help">Both floors are selected by default.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="earthquakeDurationMode">Duration</label>
+              <select id="earthquakeDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="earthquakeDuration">Seconds</label>
+              <input id="earthquakeDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="earthquake">Activate earthquake</button>
+        </article>
+
+        <article class="scenario-card power">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">ϟ</div>
+            <h3>Power failure</h3>
+          </div>
+          <p class="description">Simulate loss of the main supply on one selected node.</p>
+          <p class="effect"><strong>Sensor:</strong> INA219 · Low voltage / battery</p>
+          <div class="field">
+            <label for="powerNode">Affected node <span aria-hidden="true">*</span></label>
+            <select id="powerNode">
+              <option value="NODE-FLOOR-1">Floor 1</option>
+              <option value="NODE-FLOOR-2">Floor 2</option>
+            </select>
+            <span class="field-help">Exactly one node is required.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="powerDurationMode">Duration</label>
+              <select id="powerDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="powerDuration">Seconds</label>
+              <input id="powerDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="power_failure">Activate power failure</button>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="live-title">
+      <div class="section-heading">
+        <h2 id="live-title">Live bridge status</h2>
+        <p>Read-only view of the bridge SQLite database</p>
+      </div>
+      <div class="metrics-grid">
+        <article class="metric">
+          <span class="metric-label">Simulator</span>
+          <strong id="metricSimulator" class="metric-value small">—</strong>
+          <span class="metric-note">Process managed by this panel</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Raw readings</span>
+          <strong id="metricReadings" class="metric-value">—</strong>
+          <span class="metric-note">Total stored by bridge</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Aggregates</span>
+          <strong id="metricAggregates" class="metric-value">—</strong>
+          <span class="metric-note">Packages created</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">REST delivered</span>
+          <strong id="metricRest" class="metric-value">—</strong>
+          <span class="metric-note">Accepted by backend</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Pending queue</span>
+          <strong id="metricPending" class="metric-value">—</strong>
+          <span class="metric-note">Waiting for delivery</span>
+        </article>
+      </div>
+
+      <div class="active-panel">
+        <div>
+          <h3 id="activeTitle">No active scenario</h3>
+          <p id="activeDetail">Start the simulator, then activate a scenario.</p>
+        </div>
+        <div class="active-timer" id="activeTimer">—</div>
+      </div>
+      <p id="priorityDetail" class="field-help" style="margin:10px 0 0">Latest aggregate priority: —</p>
+    </section>
+
+    <section aria-labelledby="logs-title">
+      <div class="section-heading">
+        <h2 id="logs-title">Activity and simulator output</h2>
+        <p>Recent scenario actions and the simulator's last 100 output lines</p>
+      </div>
+      <div class="logs-grid">
+        <section class="log-panel" aria-labelledby="events-title">
+          <div class="log-header">
+            <h3 id="events-title">Event timeline</h3>
+            <span class="field-help">Newest first</span>
+          </div>
+          <div id="eventLog" class="log-content" aria-live="polite"><span class="empty">Waiting for panel activity…</span></div>
+        </section>
+        <section class="log-panel" aria-labelledby="output-title">
+          <div class="log-header">
+            <h3 id="output-title">Simulator output</h3>
+            <span class="field-help">Latest output</span>
+          </div>
+          <pre id="simulatorLog" class="log-content"><span class="empty">Simulator output will appear here.</span></pre>
+        </section>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Sentinel Building · SUCCESS · Scenario simulation panel</span>
+      <span id="lastRefresh">Waiting for live status…</span>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    const $ = (id) => document.getElementById(id);
+    let statusRequestRunning = false;
+    let toastTimer = null;
+
+    function showToast(message, isError = false) {
+      const toast = $("toast");
+      toast.textContent = message;
+      toast.classList.toggle("error", isError);
+      toast.classList.add("visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("visible"), 3800);
+    }
+
+    async function postJson(path, payload = {}) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.detail || result.error || `Request failed (${response.status})`);
+      }
+      return result;
+    }
+
+    function selectedNodes(selectElement) {
+      return Array.from(selectElement.selectedOptions, (option) => option.value);
+    }
+
+    function durationFor(prefix) {
+      const mode = $(`${prefix}DurationMode`).value;
+      if (mode === "manual") return null;
+      const raw = $(`${prefix}Duration`).value.trim();
+      if (!/^[0-9]+$/.test(raw) || Number(raw) <= 0) {
+        throw new Error("Enter a positive whole number of seconds for automatic duration.");
+      }
+      return Number(raw);
+    }
+
+    function nodeSelectionFor(scenario) {
+      if (scenario === "power_failure") return [$("powerNode").value];
+      if (scenario === "fire") return selectedNodes($("fireNodes"));
+      return selectedNodes($("earthquakeNodes"));
+    }
+
+    function durationPrefixFor(scenario) {
+      if (scenario === "power_failure") return "power";
+      if (scenario === "fire") return "fire";
+      return "earthquake";
+    }
+
+    async function activateScenario(scenario) {
+      try {
+        const nodes = nodeSelectionFor(scenario);
+        if (nodes.length === 0) {
+          throw new Error("Select at least one affected node.");
+        }
+        const duration_s = durationFor(durationPrefixFor(scenario));
+        const result = await postJson("/api/scenario/start", {
+          scenario,
+          nodes,
+          duration_s
+        });
+        showToast(result.message || "Scenario activated.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    function setDurationControl(prefix) {
+      const automatic = $(`${prefix}DurationMode`).value === "automatic";
+      $(`${prefix}Duration`).disabled = !automatic;
+      if (automatic && !$(`${prefix}Duration`).value) {
+        $(`${prefix}Duration`).value = "60";
+      }
+    }
+
+    function formatNumber(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+      return Number(value).toLocaleString();
+    }
+
+    function formatElapsed(seconds) {
+      if (seconds === null || seconds === undefined) return "—";
+      const total = Math.max(0, Math.floor(Number(seconds)));
+      const minutes = Math.floor(total / 60);
+      const remainder = total % 60;
+      return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+    }
+
+    function formatTimestamp(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleTimeString();
+    }
+
+    function renderEvents(events) {
+      const target = $("eventLog");
+      target.replaceChildren();
+      if (!Array.isArray(events) || events.length === 0) {
+        const empty = document.createElement("span");
+        empty.className = "empty";
+        empty.textContent = "Waiting for panel activity…";
+        target.appendChild(empty);
+        return;
+      }
+
+      for (const event of [...events].reverse()) {
+        const line = document.createElement("div");
+        const timestamp = formatTimestamp(event.timestamp);
+        line.textContent = `${timestamp}  ${event.action || "Event"}  ${event.detail || ""}`;
+        target.appendChild(line);
+      }
+    }
+
+    function renderSimulatorLog(lines) {
+      const target = $("simulatorLog");
+      if (!Array.isArray(lines) || lines.length === 0) {
+        target.textContent = "Simulator output will appear here.";
+        target.classList.add("empty");
+        return;
+      }
+      target.classList.remove("empty");
+      target.textContent = lines.join("\n");
+      target.scrollTop = target.scrollHeight;
+    }
+
+    function renderStatus(data) {
+      const status = data.status || {};
+      const bridge = data.bridge || {};
+      const running = Boolean(status.simulator_running);
+
+      $("simulatorDot").classList.toggle("online", running);
+      $("simulatorDot").classList.toggle("warning", !running && Boolean(data.bridge_active));
+      $("simulatorState").textContent = running ? "Simulator running" : "Simulator stopped";
+      $("simulatorDetail").textContent = running
+        ? `Managed by panel · PID ${status.simulator_pid || "—"}`
+        : (status.last_process_exit || "Start the simulator to control scenario events.");
+
+      $("startSimulator").disabled = running;
+      $("stopSimulator").disabled = !running;
+
+      $("metricSimulator").textContent = running ? "RUNNING" : "STOPPED";
+      $("metricSimulator").style.color = running ? "var(--green)" : "var(--muted)";
+      $("metricReadings").textContent = bridge.ready ? formatNumber(bridge.raw_readings) : "—";
+      $("metricAggregates").textContent = bridge.ready ? formatNumber(bridge.aggregates_total) : "—";
+      $("metricRest").textContent = bridge.ready ? formatNumber(bridge.sent_rest) : "—";
+      $("metricPending").textContent = bridge.ready ? formatNumber(bridge.pending) : "—";
+
+      const priority = bridge.ready && bridge.last_priority ? bridge.last_priority : "—";
+      $("priorityDetail").textContent =
+        `Latest aggregate priority: ${priority}` +
+        (bridge.message ? ` · ${bridge.message}` : "");
+
+      const scenario = status.scenario;
+      if (scenario) {
+        const nodeNames = (scenario.nodes || []).map((node) =>
+          node === "NODE-FLOOR-1" ? "Floor 1" : "Floor 2"
+        );
+        const sensors = scenario.sensors || [];
+        $("activeTitle").textContent = `${scenario.label || scenario.name} active`;
+        $("activeDetail").textContent =
+          `Nodes: ${nodeNames.join(", ") || "—"} · Sensors: ${sensors.join(", ") || "—"}`;
+        const elapsed = formatElapsed(scenario.elapsed_s);
+        $("activeTimer").textContent = scenario.duration_s === null
+          ? `Elapsed ${elapsed} · Manual`
+          : `Elapsed ${elapsed} · ${scenario.countdown_s ?? 0}s remaining`;
+      } else {
+        $("activeTitle").textContent = "No active scenario";
+        $("activeDetail").textContent = running
+          ? "Simulator is ready for a scenario."
+          : "Start the simulator, then activate a scenario.";
+        $("activeTimer").textContent = "—";
+      }
+
+      const warning = $("warning");
+      if (data.warning) {
+        warning.textContent = data.warning;
+        warning.classList.add("visible");
+      } else if (data.bridge_active && !running && !status.started_by_panel) {
+        warning.textContent =
+          "The bridge is active, but this panel did not start a simulator. If a simulator is running in another terminal, close it before starting one here.";
+        warning.classList.add("visible");
+      } else if (!bridge.ready) {
+        warning.textContent =
+          "Bridge database is not available yet. Start the bridge and wait for its first readings; the panel will keep checking.";
+        warning.classList.add("visible");
+      } else {
+        warning.textContent = "";
+        warning.classList.remove("visible");
+      }
+
+      renderEvents(status.events);
+      renderSimulatorLog(status.log);
+      $("lastRefresh").textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+    }
+
+    async function refreshStatus() {
+      if (statusRequestRunning) return;
+      statusRequestRunning = true;
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Status request failed (${response.status})`);
+        renderStatus(await response.json());
+      } catch (error) {
+        $("simulatorState").textContent = "Panel service unavailable";
+        $("simulatorDetail").textContent = error.message;
+        $("simulatorDot").classList.remove("online");
+        $("simulatorDot").classList.add("warning");
+        $("lastRefresh").textContent = "Could not refresh live status.";
+      } finally {
+        statusRequestRunning = false;
+      }
+    }
+
+    $("startSimulator").addEventListener("click", async () => {
+      try {
+        const result = await postJson("/api/simulator/start");
+        showToast(result.message || "Simulator started.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    $("stopSimulator").addEventListener("click", async () => {
+      if (!window.confirm("Stop the simulator process? Active anomalies will be cleared first.")) return;
+      try {
+        const result = await postJson("/api/simulator/stop");
+        showToast(result.message || "Simulator stopped.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    $("stopAll").addEventListener("click", async () => {
+      try {
+        const result = await postJson("/api/scenario/stop");
+        showToast(result.message || "All scenarios stopped; sensors cleared.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    document.querySelectorAll("[data-scenario]").forEach((button) => {
+      button.addEventListener("click", () => activateScenario(button.dataset.scenario));
+    });
+
+    ["fire", "earthquake", "power"].forEach((prefix) => {
+      $(`${prefix}DurationMode`).addEventListener("change", () => setDurationControl(prefix));
+      setDurationControl(prefix);
+    });
+
+    refreshStatus();
+    setInterval(refreshStatus, 1500);
+  </script>
+</body>
+</html>
