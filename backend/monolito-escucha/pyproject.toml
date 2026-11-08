@@ -12,6 +12,11 @@ requires-python = ">=3.12"
 pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+# Unitarias y de API: `pytest -m "not integration"` (lo que corre la CI en cada commit).
+# Integración: necesitan el stack levantado y escriben en BD; ver README.
+markers = [
+    "integration: prueba de integración con el stack levantado (escribe en BD)",
+]
 
 [tool.black]
 line-length = 100

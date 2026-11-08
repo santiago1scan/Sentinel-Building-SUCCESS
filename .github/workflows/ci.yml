@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  checks: write  # Publicar el resultado de cada test en el commit o PR
 
 jobs:
   unit-tests:
@@ -35,8 +36,16 @@ jobs:
 
       - name: Ejecutar pruebas
         working-directory: backend/${{ matrix.service }}
-        # Las pruebas de integración necesitan el stack completo: no corren aquí.
-        run: pytest -v --ignore=tests/integration
+        # Las pruebas de integración (marcador `integration`) necesitan el stack y escriben en BD.
+        run: pytest -v -m "not integration" --junitxml=junit.xml
+
+      - name: Publicar resultados de cada test
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Pruebas ${{ matrix.service }}
+          path: backend/${{ matrix.service }}/junit.xml
+          reporter: java-junit
 
   broker-verification:
     name: Verificación del broker dynamic-security

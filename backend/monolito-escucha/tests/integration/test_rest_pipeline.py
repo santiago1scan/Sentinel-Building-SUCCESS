@@ -33,9 +33,10 @@ from pathlib import Path
 import pytest
 
 RUN_INTEGRATION = os.getenv("RUN_INTEGRATION") == "1"
-pytestmark = pytest.mark.skipif(
-    not RUN_INTEGRATION, reason="Integración desactivada: define RUN_INTEGRATION=1"
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(not RUN_INTEGRATION, reason="Integración desactivada: define RUN_INTEGRATION=1"),
+]
 
 REPO = Path(__file__).resolve().parents[4] if len(Path(__file__).resolve().parents) > 4 else None
 # Dentro del contenedor de pruebas el simulador se monta en /simulator.
