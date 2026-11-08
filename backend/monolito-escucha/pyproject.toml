@@ -1,0 +1,33 @@
+[project]
+name = "monolito-escucha"
+version = "0.1.0"
+description = "Monolito de escucha: recibe telemetría por REST y MQTT"
+requires-python = ">=3.12"
+
+# Las dependencias viven en requirements.txt (ejecución) y requirements-dev.txt (pruebas),
+# con versiones fijadas. Son la fuente que usan el Dockerfile y la CI.
+# Este archivo no se instala como paquete: solo configura las herramientas.
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+# Unitarias y de API: `pytest -m "not integration"` (lo que corre la CI en cada commit).
+# Integración: necesitan el stack levantado y escriben en BD; ver README.
+markers = [
+    "integration: prueba de integración con el stack levantado (escribe en BD)",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false

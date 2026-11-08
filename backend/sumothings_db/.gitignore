@@ -1,0 +1,22 @@
+
+# Real environment variables
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# PostgreSQL data
+postgres_data/
+pgdata/
+**/postgres_data/
+**/pgdata/
+
+# Backups: review before sharing
+*.dump
+*.backup
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

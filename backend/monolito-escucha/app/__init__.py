@@ -1,0 +1,1 @@
+"""Monolito Consulta application package."""

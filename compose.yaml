@@ -1,0 +1,179 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: sentinel-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - sentinel-net
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-t", "$$SYS/#", "-C", "1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16
+    container_name: success_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentinel-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  monolito-escucha:
+    build:
+      context: ./backend/monolito-escucha
+      dockerfile: Dockerfile
+    container_name: monolito_escucha
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_ENV: development
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./backend/monolito-escucha:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sentinel-net
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
+
+  monolito-consulta:
+    build:
+      context: ./backend/monolito-consulta
+      dockerfile: Dockerfile
+    image: sentinel-monolito-consulta:latest
+    container_name: monolito_consulta
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_ENV: development
+    ports:
+      - "8090:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sentinel-net
+    # Sin "alembic upgrade head": escucha ya versiona la BD compartida (alembic_version).
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8089
+
+  mock-backend:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: sentinel-mock-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - sentinel-net
+    command: python -m uvicorn mock_backend.fastapi_app:app --host 0.0.0.0 --port 8000
+
+  bridge:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: sentinel-bridge
+    restart: unless-stopped
+    ports:
+      - "8766:8766"
+    networks:
+      - sentinel-net
+    volumes:
+      - bridge_data:/app/data_bridge
+    environment:
+      # Tokens por nodo: "NODE-FLOOR-1=token1,NODE-FLOOR-2=token2" (definir en .env de la raíz)
+      SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
+    depends_on:
+      monolito-escucha:
+        condition: service_started
+      mosquitto:
+        condition: service_healthy
+    command: >
+      python bridge/bridge_service.py
+      --listen-host 0.0.0.0 --listen-port 8766 --data-dir /app/data_bridge
+      --building-code SB-001 --interval 30
+      --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate
+      --mqtt-host mosquitto --mqtt-port 1883
+
+  mqtt-sensor-simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: sentinel-mqtt-simulator
+    restart: unless-stopped
+    networks:
+      - sentinel-net
+    volumes:
+      - simulator_data:/app/data_sensor_simulator
+      - ./simulator/run_simulator.sh:/app/run_simulator.sh:ro
+    depends_on:
+      bridge:
+        condition: service_started
+    command: bash /app/run_simulator.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  # Pruebas de integración: simulador → bridge → escucha, verificadas con consulta.
+  # No se levanta con `up`. Ejecutar con:
+  #   docker compose --profile test run --rm integration-tests
+  # ATENCIÓN: escribe lecturas reales en la BD `success`.
+  integration-tests:
+    profiles: ["test"]
+    build:
+      context: ./backend/monolito-escucha
+      dockerfile: Dockerfile
+    container_name: sentinel-integration-tests
+    networks:
+      - sentinel-net
+    volumes:
+      - ./backend/monolito-escucha:/app
+      - ./simulator:/simulator:ro
+    depends_on:
+      monolito-escucha:
+        condition: service_started
+      monolito-consulta:
+        condition: service_started
+      bridge:
+        condition: service_started
+    environment:
+      RUN_INTEGRATION: "1"
+      INTEGRATION_ESCUCHA_URL: http://monolito-escucha:8089
+      INTEGRATION_CONSULTA_URL: http://monolito-consulta:8089
+      INTEGRATION_BRIDGE_URL: http://bridge:8766
+      INTEGRATION_SIMULATOR_DIR: /simulator
+      PYTHONUNBUFFERED: "1"
+    command: sh -c "pip install -q -r requirements-dev.txt && pytest tests/integration -v"
+
+volumes:
+  postgres_data:
+  bridge_data:
+  simulator_data:
+  mosquitto_data:
+  mosquitto_logs:
+
+networks:
+  sentinel-net:
+    driver: bridge

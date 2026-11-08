@@ -1,0 +1,30 @@
+[project]
+name = "monolito-consulta"
+version = "0.1.0"
+description = "Monolito de consulta de datos de Sentinel Building"
+requires-python = ">=3.11"
+
+# Las dependencias viven en requirements.txt (ejecución) y requirements-dev.txt (pruebas),
+# con versiones fijadas. Son la fuente que usan el Dockerfile y la CI.
+# Este archivo no se instala como paquete: solo configura las herramientas.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "UP", "W"]
+ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+"app/models/*.py" = ["F821"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false

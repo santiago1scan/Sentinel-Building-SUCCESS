@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write  # Publicar el resultado de cada test en el commit o PR
+
+jobs:
+  unit-tests:
+    name: Pruebas unitarias (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # La versión de Python es la de cada Dockerfile.
+          - service: monolito-consulta
+            python: "3.11"
+          - service: monolito-escucha
+            python: "3.12"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Instalar dependencias de desarrollo
+        working-directory: backend/${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ejecutar pruebas
+        working-directory: backend/${{ matrix.service }}
+        # Las pruebas de integración (marcador `integration`) necesitan el stack y escriben en BD.
+        run: pytest -v -m "not integration" --junitxml=junit.xml
+
+      - name: Publicar resultados de cada test
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Pruebas ${{ matrix.service }}
+          path: backend/${{ matrix.service }}/junit.xml
+          reporter: java-junit
+
+  broker-verification:
+    name: Verificación del broker dynamic-security
+    runs-on: ubuntu-latest
+    env:
+      MQTT_ADMIN_PASSWORD: ci-admin-password-not-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar paho-mqtt
+        run: pip install "paho-mqtt==2.1.0"
+
+      - name: Crear la base dynamic-security
+        working-directory: backend/mosquitto
+        run: ./init.sh
+
+      - name: Levantar el broker con la configuración del repositorio
+        working-directory: backend/mosquitto
+        run: |
+          docker run -d --name sentinel-broker -p 1883:1883 \
+            -v "$PWD/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" \
+            -v "$PWD/data:/mosquitto/data" \
+            eclipse-mosquitto:2.0
+          for i in $(seq 1 30); do
+            if python -c "import socket; socket.create_connection(('localhost', 1883), 1)" 2>/dev/null; then
+              echo "Broker listo"; exit 0
+            fi
+            sleep 1
+          done
+          docker logs sentinel-broker
+          exit 1
+
+      - name: Verificar autenticación, ACL y revocación
+        working-directory: backend/mosquitto
+        run: python verify_dynsec.py --host localhost --port 1883
+
+      - name: Registros del broker (si algo falla)
+        if: failure()
+        run: docker logs sentinel-broker || true

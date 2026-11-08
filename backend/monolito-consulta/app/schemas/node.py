@@ -1,0 +1,46 @@
+"""Node schemas."""
+import datetime
+import decimal
+from ipaddress import IPv4Address
+
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+class NodeBase(BaseModel):
+    code: str
+    name: str
+    zone_id: int
+    ip_address: str | None = None
+    local_storage_mb: decimal.Decimal | None = None
+
+
+class NodeCreate(NodeBase):
+    pass
+
+
+class NodeUpdate(BaseModel):
+    code: str | None = None
+    name: str | None = None
+    zone_id: int | None = None
+    ip_address: str | None = None
+    local_storage_mb: decimal.Decimal | None = None
+
+
+class NodeRead(NodeBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    node_id: int
+    registered_at: datetime.datetime
+
+    @field_validator("ip_address", mode="before")
+    @classmethod
+    def convert_ip_address(cls, v):
+        if isinstance(v, IPv4Address):
+            return str(v)
+        return v
+
+
+class NodeCreateResponse(NodeRead):
+    """Respuesta de POST /nodes. El token solo se entrega en la creación."""
+
+    token: str
