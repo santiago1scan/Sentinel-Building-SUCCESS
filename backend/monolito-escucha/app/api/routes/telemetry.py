@@ -3,7 +3,9 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.deps import get_telemetry_service
+from app.api.deps import get_authenticated_node, get_telemetry_service
+from app.models.node import Node
+from app.services.node_auth_service import NodeAuthService
 from app.services.telemetry_service import TelemetryService
 from app.services.DTOS.telemetry_dto import TelemetryAggregateDTO
 
@@ -13,14 +15,17 @@ router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 @router.post("/aggregate", status_code=202)
 async def process_telemetry_aggregate(
     telemetry_in: TelemetryAggregateDTO,
+    node: Node = Depends(get_authenticated_node),
     service: TelemetryService = Depends(get_telemetry_service),
 ):
     """
     Process telemetry aggregate from bridge and save readings to database.
 
+    - **Header X-Node-Token**: token of the sending node (required, 401 if missing or invalid)
     - **Request body**: TelemetryAggregateDTO with building, bridges, sensors, and data
     - **Returns**: Message UID, count of created readings, and any errors
     """
+    NodeAuthService.ensure_owns_bridges(node, (bridge.node_code for bridge in telemetry_in.bridges))
     try:
         result = await service.process_telemetry(telemetry_in)
         return result

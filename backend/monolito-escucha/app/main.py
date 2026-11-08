@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import health, telemetry
+from app.api.routes import auth, health, telemetry
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
 from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
@@ -191,6 +191,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 # Include routers (only MQTT & Telemetry)
 app.include_router(health.router)
 app.include_router(telemetry.router)
+app.include_router(auth.router)
 
 
 @app.get("/")

@@ -28,6 +28,7 @@ class Node(Base):
         ForeignKeyConstraint(["zone_id"], ["zone.zone_id"], ondelete="RESTRICT", onupdate="CASCADE", name="fk_node_zone"),
         PrimaryKeyConstraint("node_id", name="node_pkey"),
         UniqueConstraint("code", name="node_code_key"),
+        UniqueConstraint("token_hash", name="node_token_hash_key"),
         Index("idx_node_zone", "zone_id"),
     )
 
@@ -44,6 +45,7 @@ class Node(Base):
     ip_address: Mapped[str | None] = mapped_column(INET)
     local_storage_mb: Mapped[decimal.Decimal | None] = mapped_column(Numeric(12, 2))
     last_signal_received_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    token_hash: Mapped[str | None] = mapped_column(String(64))
 
     zone: Mapped["Zone"] = relationship("Zone", back_populates="nodes")
     sensors: Mapped[list["Sensor"]] = relationship("Sensor", back_populates="primary_node")

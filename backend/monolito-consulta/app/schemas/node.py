@@ -31,8 +31,6 @@ class NodeRead(NodeBase):
 
     node_id: int
     registered_at: datetime.datetime
-    # Lo actualiza el sistema al recibir señal del nodo; no lo envía el cliente.
-    last_signal_received_at: datetime.datetime | None = None
 
     @field_validator("ip_address", mode="before")
     @classmethod
@@ -40,3 +38,9 @@ class NodeRead(NodeBase):
         if isinstance(v, IPv4Address):
             return str(v)
         return v
+
+
+class NodeCreateResponse(NodeRead):
+    """Respuesta de POST /nodes. El token solo se entrega en la creación."""
+
+    token: str

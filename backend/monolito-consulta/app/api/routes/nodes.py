@@ -4,13 +4,16 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_node_service
-from app.schemas.node import NodeCreate, NodeRead, NodeUpdate
+from app.schemas.connectivity_log import ConnectivityLogRead
+from app.schemas.node import NodeCreate, NodeCreateResponse, NodeRead, NodeUpdate
+from app.schemas.reading import ReadingRead
+from app.schemas.sensor import SensorRead
 from app.services.node_service import NodeService
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
 
 
-@router.post("", response_model=NodeRead, status_code=201)
+@router.post("", response_model=NodeCreateResponse, status_code=201)
 async def create_node(
     node_in: NodeCreate,
     service: NodeService = Depends(get_node_service),
@@ -79,7 +82,7 @@ async def get_nodes_by_zone(
     return await service.get_by_zone(zone_id)
 
 
-@router.get("/{node_id}/sensors", response_model=Sequence[NodeRead])
+@router.get("/{node_id}/sensors", response_model=Sequence[SensorRead])
 async def get_node_sensors(
     node_id: int,
     service: NodeService = Depends(get_node_service),
@@ -87,7 +90,7 @@ async def get_node_sensors(
     return await service.get_sensors(node_id)
 
 
-@router.get("/{node_id}/connectivity-logs", response_model=Sequence[NodeRead])
+@router.get("/{node_id}/connectivity-logs", response_model=Sequence[ConnectivityLogRead])
 async def get_node_connectivity_logs(
     node_id: int,
     service: NodeService = Depends(get_node_service),
@@ -95,7 +98,7 @@ async def get_node_connectivity_logs(
     return await service.get_connectivity_logs(node_id)
 
 
-@router.get("/{node_id}/received-readings", response_model=Sequence[NodeRead])
+@router.get("/{node_id}/received-readings", response_model=Sequence[ReadingRead])
 async def get_node_received_readings(
     node_id: int,
     service: NodeService = Depends(get_node_service),

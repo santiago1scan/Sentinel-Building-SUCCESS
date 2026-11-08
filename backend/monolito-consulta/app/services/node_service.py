@@ -2,20 +2,28 @@
 from collections.abc import Sequence
 
 from app.core.exceptions import NotFoundError, ServiceUnavailableError
+from app.core.security import generate_node_token, hash_token
 from app.repositories.node_repository import NodeRepository
-from app.schemas.node import NodeCreate, NodeRead, NodeUpdate
+from app.schemas.connectivity_log import ConnectivityLogRead
+from app.schemas.node import NodeCreate, NodeCreateResponse, NodeRead, NodeUpdate
+from app.schemas.reading import ReadingRead
+from app.schemas.sensor import SensorRead
 
 
 class NodeService:
     def __init__(self, repository: NodeRepository):
         self.repository = repository
 
-    async def create(self, node_in: NodeCreate) -> NodeRead:
+    async def create(self, node_in: NodeCreate) -> NodeCreateResponse:
+        token = generate_node_token()
+        data = node_in.model_dump()
+        data["token_hash"] = hash_token(token)
         try:
-            node = await self.repository.create(node_in)
+            node = await self.repository.create(data)
         except Exception as e:
             raise ServiceUnavailableError(f"Failed to create node: {e}") from e
-        return NodeRead.model_validate(node)
+        # El token en claro solo existe en esta respuesta; no se puede recuperar después.
+        return NodeCreateResponse.model_validate({**NodeRead.model_validate(node).model_dump(), "token": token})
 
     async def get(self, node_id: int) -> NodeRead:
         node = await self.repository.get(node_id)
@@ -62,32 +70,30 @@ class NodeService:
             raise ServiceUnavailableError(f"Failed to retrieve nodes: {e}") from e
         return [NodeRead.model_validate(n) for n in nodes]
 
-    async def get_sensors(self, node_id: int) -> Sequence[NodeRead]:
-        node = await self.repository.get(node_id)
-        if not node:
-            raise NotFoundError(f"Node with id {node_id} not found")
+    async def get_sensors(self, node_id: int) -> Sequence[SensorRead]:
+        await self._ensure_exists(node_id)
         try:
-            nodes = await self.repository.get_sensors(node_id)
+            sensors = await self.repository.get_sensors(node_id)
         except Exception as e:
             raise ServiceUnavailableError(f"Failed to retrieve sensors: {e}") from e
-        return [NodeRead.model_validate(n) for n in nodes]
+        return [SensorRead.model_validate(s) for s in sensors]
 
-    async def get_connectivity_logs(self, node_id: int) -> Sequence[NodeRead]:
-        node = await self.repository.get(node_id)
-        if not node:
-            raise NotFoundError(f"Node with id {node_id} not found")
+    async def get_connectivity_logs(self, node_id: int) -> Sequence[ConnectivityLogRead]:
+        await self._ensure_exists(node_id)
         try:
-            nodes = await self.repository.get_connectivity_logs(node_id)
+            logs = await self.repository.get_connectivity_logs(node_id)
         except Exception as e:
             raise ServiceUnavailableError(f"Failed to retrieve connectivity logs: {e}") from e
-        return [NodeRead.model_validate(n) for n in nodes]
+        return [ConnectivityLogRead.model_validate(log) for log in logs]
 
-    async def get_received_readings(self, node_id: int) -> Sequence[NodeRead]:
-        node = await self.repository.get(node_id)
-        if not node:
-            raise NotFoundError(f"Node with id {node_id} not found")
+    async def get_received_readings(self, node_id: int) -> Sequence[ReadingRead]:
+        await self._ensure_exists(node_id)
         try:
-            nodes = await self.repository.get_received_readings(node_id)
+            readings = await self.repository.get_received_readings(node_id)
         except Exception as e:
             raise ServiceUnavailableError(f"Failed to retrieve readings: {e}") from e
-        return [NodeRead.model_validate(n) for n in nodes]
+        return [ReadingRead.model_validate(r) for r in readings]
+
+    async def _ensure_exists(self, node_id: int) -> None:
+        if not await self.repository.get(node_id):
+            raise NotFoundError(f"Node with id {node_id} not found")

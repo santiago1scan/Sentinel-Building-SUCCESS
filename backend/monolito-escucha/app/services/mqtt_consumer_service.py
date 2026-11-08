@@ -7,6 +7,11 @@ from typing import Callable
 import paho.mqtt.client as mqtt
 
 from app.services.DTOS.telemetry_dto import TelemetryAggregateDTO
+from app.services.mqtt_topics import (
+    AGGREGATE_SUBSCRIPTION,
+    bridges_belong_to_node,
+    parse_aggregate_topic,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +47,8 @@ class MQTTConsumerService:
         """Callback for when the client connects to the broker."""
         if rc == 0:
             logger.info(f"✅ Conectado a MQTT broker en {self.broker_host}:{self.broker_port}")
-            client.subscribe("sentinel/v1/SB-001/#", qos=1)
-            logger.info("📡 Suscrito a: sentinel/v1/SB-001/#")
+            client.subscribe(AGGREGATE_SUBSCRIPTION, qos=1)
+            logger.info(f"📡 Suscrito a: {AGGREGATE_SUBSCRIPTION}")
         else:
             logger.error(f"❌ Error conectando a MQTT broker: código {rc}")
 
@@ -54,6 +59,13 @@ class MQTTConsumerService:
             payload = msg.payload.decode("utf-8")
 
             logger.debug(f"📨 Mensaje recibido en: {topic}")
+
+            # El nodo se identifica por el topic, que el broker controla por ACL.
+            topic_parts = parse_aggregate_topic(topic)
+            if topic_parts is None:
+                logger.warning(f"⚠️  Topic no válido para telemetría: {topic}")
+                return
+            _, topic_node_code = topic_parts
 
             # Parse JSON payload
             try:
@@ -72,6 +84,13 @@ class MQTTConsumerService:
                 telemetry = TelemetryAggregateDTO(**data)
             except Exception as e:
                 logger.warning(f"⚠️  Error al convertir a DTO: {e}")
+                return
+
+            # Un nodo solo puede reportar sus propios bridges.
+            if not bridges_belong_to_node((b.node_code for b in telemetry.bridges), topic_node_code):
+                logger.warning(
+                    f"⚠️  Payload con bridges ajenos al topic del nodo {topic_node_code}: {topic}"
+                )
                 return
 
             # Call handler if set

@@ -16,6 +16,12 @@ class NodeRepository(BaseRepository[Node, Node, Node]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_token_hash(self, token_hash: str) -> Node | None:
+        """Get node by the hash of its token."""
+        stmt = select(Node).where(Node.token_hash == token_hash)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_zone(self, zone_id: int) -> Sequence[Node]:
         """Get nodes by zone ID."""
         stmt = select(Node).where(Node.zone_id == zone_id)

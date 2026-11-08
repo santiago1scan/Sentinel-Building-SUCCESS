@@ -103,10 +103,20 @@ services:
       - sentinel-net
     volumes:
       - bridge_data:/app/data_bridge
+    environment:
+      # Tokens por nodo: "NODE-FLOOR-1=token1,NODE-FLOOR-2=token2" (definir en .env de la raíz)
+      SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
     depends_on:
       monolito-escucha:
         condition: service_started
-    command: python bridge/bridge_service.py --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate --listen-port 8766 --data-dir /app/data_bridge
+      mosquitto:
+        condition: service_healthy
+    command: >
+      python bridge/bridge_service.py
+      --listen-host 0.0.0.0 --listen-port 8766 --data-dir /app/data_bridge
+      --building-code SB-001 --interval 30
+      --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate
+      --mqtt-host mosquitto --mqtt-port 1883
 
   mqtt-sensor-simulator:
     build:
@@ -120,11 +130,42 @@ services:
       - simulator_data:/app/data_sensor_simulator
       - ./simulator/run_simulator.sh:/app/run_simulator.sh:ro
     depends_on:
-      mosquitto:
-        condition: service_healthy
+      bridge:
+        condition: service_started
     command: bash /app/run_simulator.sh
     environment:
       - PYTHONUNBUFFERED=1
+
+  # Pruebas de integración: simulador → bridge → escucha, verificadas con consulta.
+  # No se levanta con `up`. Ejecutar con:
+  #   docker compose --profile test run --rm integration-tests
+  # ATENCIÓN: escribe lecturas reales en la BD `success`.
+  integration-tests:
+    profiles: ["test"]
+    build:
+      context: ./backend/monolito-escucha
+      dockerfile: Dockerfile
+    container_name: sentinel-integration-tests
+    networks:
+      - sentinel-net
+    volumes:
+      - ./backend/monolito-escucha:/app
+      - ./simulator:/simulator:ro
+    depends_on:
+      monolito-escucha:
+        condition: service_started
+      monolito-consulta:
+        condition: service_started
+      bridge:
+        condition: service_started
+    environment:
+      RUN_INTEGRATION: "1"
+      INTEGRATION_ESCUCHA_URL: http://monolito-escucha:8089
+      INTEGRATION_CONSULTA_URL: http://monolito-consulta:8089
+      INTEGRATION_BRIDGE_URL: http://bridge:8766
+      INTEGRATION_SIMULATOR_DIR: /simulator
+      PYTHONUNBUFFERED: "1"
+    command: sh -c "pip install -q -r requirements-dev.txt && pytest tests/integration -v"
 
 volumes:
   postgres_data:
