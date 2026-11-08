@@ -95,11 +95,26 @@ class BrokerAdmin:
         self._send(build_create_node_commands(self.building_code, node_code, token))
         logger.info("Cliente de nodo creado en el broker: %s", node_code)
 
+    def upsert_node(self, node_code: str, token: str) -> None:
+        """Crea el cliente o, si ya existe, reemplaza su contraseña. Idempotente.
+
+        Se usa al entregar el token: si una entrega anterior no llegó al bridge, el reintento
+        genera un token nuevo y debe poder reemplazar el anterior en el broker.
+        """
+        try:
+            self._send(build_create_node_commands(self.building_code, node_code, token),
+                       tolerate=("Role already exists",))
+        except BrokerAdminError as exc:
+            if "Client already exists" not in str(exc):
+                raise
+            self._send([{"command": "setClientPassword", "username": node_code, "password": token}])
+        logger.info("Cliente de nodo registrado en el broker: %s", node_code)
+
     def disable_node(self, node_code: str) -> None:
         self._send(build_disable_node_commands(node_code))
         logger.info("Cliente de nodo deshabilitado en el broker: %s", node_code)
 
-    def _send(self, commands: list[dict[str, Any]]) -> None:
+    def _send(self, commands: list[dict[str, Any]], tolerate: tuple[str, ...] = ()) -> None:
         with self._lock:
             done = threading.Event()
             outcome: dict[str, Any] = {}
@@ -141,6 +156,7 @@ class BrokerAdmin:
 
             if "error" in outcome:
                 raise BrokerAdminError(outcome["error"])
-            errors = find_command_errors(outcome["response"])
+            errors = [e for e in find_command_errors(outcome["response"])
+                      if not any(t in e for t in tolerate)]
             if errors:
                 raise BrokerAdminError("; ".join(errors))

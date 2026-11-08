@@ -56,6 +56,13 @@ class ConflictError(AppException):
     default_detail = "Conflict"
 
 
+class GoneError(AppException):
+    """410 Gone - El recurso existió pero ya no está disponible (expirado, rechazado o entregado)."""
+
+    status_code = 410
+    default_detail = "Gone"
+
+
 class UnprocessableEntityError(AppException):
     """422 Unprocessable Entity - Semantic errors in request."""
 

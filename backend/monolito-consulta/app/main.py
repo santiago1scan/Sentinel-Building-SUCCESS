@@ -17,6 +17,7 @@ from app.api.routes import (
     health,
     nodes,
     readings,
+    registrations,
     sensor_types,
     sensors,
     zones,
@@ -178,6 +179,7 @@ app.include_router(health.router)
 app.include_router(buildings.router)
 app.include_router(zones.router)
 app.include_router(nodes.router)
+app.include_router(registrations.router)
 app.include_router(sensor_types.router)
 app.include_router(sensors.router)
 app.include_router(readings.router)

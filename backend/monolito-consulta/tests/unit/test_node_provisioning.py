@@ -1,4 +1,4 @@
-"""NodeService: el alta y la revocación de un nodo también actualizan el broker."""
+"""NodeService: la revocación de un nodo deshabilita su cliente en el broker."""
 import datetime
 import decimal
 from types import SimpleNamespace
@@ -7,7 +7,6 @@ import pytest
 
 from app.core.broker_admin import BrokerAdminError
 from app.core.exceptions import NotFoundError, ServiceUnavailableError
-from app.schemas.node import NodeCreate
 from app.services.node_service import NodeService
 
 
@@ -52,39 +51,6 @@ class FakeBroker:
         if self.fail_with:
             raise BrokerAdminError(self.fail_with)
         self.disabled.append(node_code)
-
-
-NODE_IN = NodeCreate(code="NODE-FLOOR-1", name="Bridge 1", zone_id=1)
-
-
-@pytest.mark.asyncio
-async def test_create_registers_node_client_with_the_returned_token():
-    repo, broker = FakeNodeRepository(), FakeBroker()
-    result = await NodeService(repo, broker).create(NODE_IN)
-
-    assert broker.created == [("NODE-FLOOR-1", result.token)]
-    assert result.token
-    # En la BD solo se guarda el hash, nunca el token en claro.
-    assert repo.created_data["token_hash"] != result.token
-    assert result.token not in repo.created_data.values()
-
-
-@pytest.mark.asyncio
-async def test_create_fails_when_broker_rejects_the_client():
-    service = NodeService(FakeNodeRepository(), FakeBroker(fail_with="Client already exists"))
-
-    with pytest.raises(ServiceUnavailableError) as error:
-        await service.create(NODE_IN)
-
-    assert "Client already exists" in error.value.detail
-
-
-@pytest.mark.asyncio
-async def test_create_requires_a_configured_broker():
-    service = NodeService(FakeNodeRepository(), broker=None)
-
-    with pytest.raises(ServiceUnavailableError):
-        await service.create(NODE_IN)
 
 
 @pytest.mark.asyncio

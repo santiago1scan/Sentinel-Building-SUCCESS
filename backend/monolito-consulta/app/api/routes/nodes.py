@@ -5,20 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_node_service
 from app.schemas.connectivity_log import ConnectivityLogRead
-from app.schemas.node import NodeCreate, NodeCreateResponse, NodeRead, NodeUpdate
+from app.schemas.node import NodeRead, NodeUpdate
 from app.schemas.reading import ReadingRead
 from app.schemas.sensor import SensorRead
 from app.services.node_service import NodeService
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
-
-
-@router.post("", response_model=NodeCreateResponse, status_code=201)
-async def create_node(
-    node_in: NodeCreate,
-    service: NodeService = Depends(get_node_service),
-):
-    return await service.create(node_in)
 
 
 @router.post("/{node_id}/revoke", status_code=204)

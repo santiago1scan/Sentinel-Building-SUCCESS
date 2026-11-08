@@ -5,10 +5,9 @@ from collections.abc import Sequence
 
 from app.core.broker_admin import BrokerAdmin, BrokerAdminError
 from app.core.exceptions import NotFoundError, ServiceUnavailableError
-from app.core.security import generate_node_token, hash_token
 from app.repositories.node_repository import NodeRepository
 from app.schemas.connectivity_log import ConnectivityLogRead
-from app.schemas.node import NodeCreate, NodeCreateResponse, NodeRead, NodeUpdate
+from app.schemas.node import NodeRead, NodeUpdate
 from app.schemas.reading import ReadingRead
 from app.schemas.sensor import SensorRead
 
@@ -22,23 +21,6 @@ class NodeService:
         if self.broker is None:
             raise ServiceUnavailableError("El broker MQTT no está configurado para administrar nodos")
         return self.broker
-
-    async def create(self, node_in: NodeCreate) -> NodeCreateResponse:
-        broker = self._require_broker()
-        token = generate_node_token()
-        data = node_in.model_dump()
-        data["token_hash"] = hash_token(token)
-        try:
-            node = await self.repository.create(data)
-        except Exception as e:
-            raise ServiceUnavailableError(f"Failed to create node: {e}") from e
-        # Si el broker rechaza el cliente, la excepción revierte la fila del nodo (get_db).
-        try:
-            await asyncio.to_thread(broker.create_node, node.code, token)
-        except BrokerAdminError as e:
-            raise ServiceUnavailableError(f"No se pudo registrar el nodo en el broker: {e}") from e
-        # El token en claro solo existe en esta respuesta; no se puede recuperar después.
-        return NodeCreateResponse.model_validate({**NodeRead.model_validate(node).model_dump(), "token": token})
 
     async def revoke(self, node_id: int) -> None:
         """Deshabilita el cliente en el broker (corta la sesión activa) y marca el nodo como revocado."""

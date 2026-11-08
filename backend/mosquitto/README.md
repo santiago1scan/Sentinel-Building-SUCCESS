@@ -60,7 +60,7 @@ una imagen propia.
      python -m app.scripts.provision_existing_nodes
    ```
 
-   Los nodos nuevos se dan de alta solos: `POST /nodes` crea su cliente en el broker.
+   Los nodos nuevos se registran por solicitud (`POST /registrations`, aprobación del administrador y entrega del token): su cliente en el broker se crea al entregar el token.
 
 5. Verificar el broker antes de usarlo con el stack:
 

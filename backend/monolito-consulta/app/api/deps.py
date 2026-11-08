@@ -18,6 +18,8 @@ from app.repositories.sensor_repository import SensorRepository
 from app.repositories.sensor_type_repository import SensorTypeRepository
 from app.repositories.zone_repository import ZoneRepository
 from app.services.alert_service import AlertService
+from app.services.registration_service import RegistrationService
+from app.services.registration_store import RegistrationStore
 from app.services.app_role_service import AppRoleService
 from app.services.app_user_service import AppUserService
 from app.services.building_service import BuildingService
@@ -115,6 +117,24 @@ def get_broker_admin() -> BrokerAdmin | None:
         password=settings.mqtt_admin_password,
         building_code=settings.building_code,
     )
+
+
+_registration_store: RegistrationStore | None = None
+
+
+def get_registration_store() -> RegistrationStore:
+    """Un solo almacén para todo el proceso: las solicitudes viven en memoria."""
+    global _registration_store
+    if _registration_store is None:
+        _registration_store = RegistrationStore(ttl_seconds=settings.registration_ttl_seconds)
+    return _registration_store
+
+
+async def get_registration_service(
+    repo: NodeRepository = Depends(get_node_repo),
+    zone_repo: ZoneRepository = Depends(get_zone_repo),
+) -> AsyncGenerator[RegistrationService, None]:
+    yield RegistrationService(get_registration_store(), repo, zone_repo, get_broker_admin())
 
 
 async def get_node_service(

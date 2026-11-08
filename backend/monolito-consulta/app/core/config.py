@@ -24,5 +24,9 @@ class Settings(BaseSettings):
     mqtt_admin_password: str | None = None
     building_code: str = "SB-001"
 
+    # Tiempo que una solicitud de registro de nodo espera aprobación (y una aprobación espera
+    # a que el bridge recoja el token). Las solicitudes viven en memoria: un solo proceso.
+    registration_ttl_seconds: int = 300
+
 
 settings = Settings()
