@@ -50,6 +50,8 @@ class RegistrationStore:
         self._items: dict[str, Registration] = {}
         # Serializa aprobar, rechazar y entregar: cada solicitud cambia de estado una sola vez.
         self.lock = asyncio.Lock()
+        # Sube con cada cambio de estado. El stream SSE emite cuando cambia.
+        self.version = 0
 
     def now(self) -> datetime:
         return self._clock()
@@ -70,6 +72,7 @@ class RegistrationStore:
             poll_secret_hash=hash_secret(secret), created_at=now, expires_at=now + self.ttl,
         )
         self._items[item.id] = item
+        self.touch()
         return item, secret
 
     def get(self, registration_id: str) -> Registration | None:
@@ -93,6 +96,9 @@ class RegistrationStore:
     @staticmethod
     def verify_secret(item: Registration, secret: str) -> bool:
         return hmac.compare_digest(item.poll_secret_hash, hash_secret(secret))
+
+    def touch(self) -> None:
+        self.version += 1
 
     def renew(self, item: Registration) -> None:
         """Al aprobar, el bridge dispone de otro tiempo completo para recoger el token."""

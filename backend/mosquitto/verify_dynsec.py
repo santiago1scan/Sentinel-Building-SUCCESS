@@ -2,13 +2,18 @@
 
 Crea clientes y roles con nombres VERIFY-* (no toca nodos reales) y los borra al terminar.
 
-    MQTT_ADMIN_PASSWORD=... python verify_dynsec.py [--host localhost] [--port 1883]
+    MQTT_ADMIN_PASSWORD=... python verify_dynsec.py --cafile certs/ca.crt [--host localhost] [--port 8883]
+
+Con --cafile usa TLS (el broker del repositorio solo escucha en 8883) y además comprueba que
+una conexión sin TLS y una con una CA que no es la del broker son rechazadas.
+Sin --cafile se conecta en claro, para verificar un broker de pruebas sin TLS.
 
 Requiere paho-mqtt (pip install "paho-mqtt>=2.1,<3").
 """
 import argparse
 import json
 import os
+import ssl
 import sys
 import threading
 import time
@@ -25,13 +30,24 @@ CONTROL = "$CONTROL/dynamic-security/v1"
 RESPONSE = "$CONTROL/dynamic-security/v1/response"
 
 
-def connect(host, port, user=None, pw=None):
-    """Conecta y devuelve (cliente, resultado_booleano). El resultado sale del CONNACK real."""
+CAFILE = None  # Se fija en main() con --cafile.
+
+
+def connect(host, port, user=None, pw=None, tls="default"):
+    """Conecta y devuelve (cliente, resultado_booleano). El resultado sale del CONNACK real.
+
+    tls: "default" usa la CA de --cafile si se indicó; "off" fuerza una conexión en claro;
+    "system" valida contra las CA del sistema (no incluyen la del broker).
+    """
     box = {}
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"verify-{uuid.uuid4().hex[:6]}",
                          protocol=mqtt.MQTTv311)
     if user is not None:
         client.username_pw_set(user, pw)
+    if tls == "system":
+        client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
+    elif tls == "default" and CAFILE:
+        client.tls_set(ca_certs=CAFILE, cert_reqs=ssl.CERT_REQUIRED)
     client.on_connect = lambda cl, ud, f, rc, props=None: box.update(ok=not rc.is_failure)
     client.connect_async(host, port, keepalive=30)
     client.loop_start()
@@ -44,8 +60,11 @@ def connect(host, port, user=None, pw=None):
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="localhost")
-    parser.add_argument("--port", type=int, default=1883)
+    parser.add_argument("--port", type=int, default=8883)
+    parser.add_argument("--cafile", default=None, help="CA PEM del broker; activa TLS")
     args = parser.parse_args()
+    global CAFILE
+    CAFILE = args.cafile
     admin_pw = os.getenv("MQTT_ADMIN_PASSWORD")
     if not admin_pw:
         print("Define MQTT_ADMIN_PASSWORD", file=sys.stderr)
@@ -114,6 +133,12 @@ def main() -> int:
     check("token incorrecto rechazado", not bad_ok)
     _, anon_ok = connect(args.host, args.port)
     check("conexión anónima rechazada", not anon_ok)
+
+    if CAFILE:
+        _, plain_ok = connect(args.host, args.port, NODE_A, TOKEN_A, tls="off")
+        check("conexión sin TLS rechazada", not plain_ok)
+        _, untrusted_ok = connect(args.host, args.port, NODE_A, TOKEN_A, tls="system")
+        check("certificado de una CA no confiable rechazado", not untrusted_ok)
 
     node_a.publish(TOPIC_A, "{}", qos=1)
     node_b.publish(TOPIC_B, "{}", qos=1)

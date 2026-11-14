@@ -116,6 +116,8 @@ def get_broker_admin() -> BrokerAdmin | None:
         username=settings.mqtt_admin_username,
         password=settings.mqtt_admin_password,
         building_code=settings.building_code,
+        use_tls=settings.mqtt_tls,
+        ca_file=settings.mqtt_ca_file,
     )
 
 

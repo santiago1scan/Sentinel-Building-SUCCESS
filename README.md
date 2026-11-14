@@ -92,10 +92,9 @@ success_db                Up (healthy)        127.0.0.1:5432->5432/tcp
 **Tecnología:** FastAPI + SQLAlchemy + PostgreSQL
 
 ### 2. Broker MQTT (Mosquitto)
-- **Puerto:** 1883 (MQTT)
-- **Puerto:** 9001 (WebSocket)
+- **Puerto:** 8883 (MQTT sobre TLS). No hay puerto 1883 ni WebSocket.
 - **Host:** `mosquitto` (dentro de Docker)
-- **Anónimo:** Habilitado
+- **Anónimo:** Deshabilitado. Cada nodo se autentica con su token; ver `backend/mosquitto/README.md`
 
 **Canales de Telemetría:**
 - `sentinel/v1/SB-001/telemetry/batch` - Lotes de telemetría
@@ -335,7 +334,6 @@ POSTGRES_PASSWORD=change_me
 ```
 sentinel-builder/
 ├── compose.yaml              # Orquestación de servicios
-├── mosquitto.conf            # Configuración de Mosquitto
 ├── .env                       # Variables de entorno
 ├── README.md                  # Este archivo
 ├── backend/
@@ -424,7 +422,7 @@ LIMIT 10;
 **Problema:** El simulador no puede conectarse a Mosquitto
 **Solución:** 
 - Verificar que Mosquitto esté levantado: `docker compose ps`
-- Revisar archivo `mosquitto.conf` esté en la raíz
+- Revisar que existan `backend/mosquitto/certs/` y `backend/mosquitto/data/` (ver `backend/mosquitto/README.md`)
 - Reiniciar contenedor: `docker compose restart mosquitto`
 
 

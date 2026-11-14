@@ -1,2 +1,4 @@
-# Estado del broker: contiene hashes de contraseñas y no debe versionarse.
 data/
+
+# Certificados y llaves TLS generados por gen-certs.sh: no se versionan.
+certs/

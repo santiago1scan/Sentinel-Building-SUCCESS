@@ -15,6 +15,7 @@ Para correrla desde el host, con el stack ya levantado:
 Precondiciones:
 - Migración aplicada (columna node.token_hash) y tokens provisionados para los nodos.
 - SENTINEL_NODE_TOKENS con los mismos tokens que tienen los nodos en la BD.
+- INTEGRATION_FIREBASE_ID_TOKEN: un ID token de Firebase vigente (consulta protege /nodes y /readings).
 - Stack corriendo: monolito-escucha, monolito-consulta y bridge. Con
   SENTINEL_INTEGRATION_COMPOSE=1 la prueba los levanta con docker compose antes de correr.
 """
@@ -49,8 +50,15 @@ NODES = ["NODE-FLOOR-1", "NODE-FLOOR-2"]
 CLOCK_SKEW = timedelta(seconds=5)
 
 
+# consulta exige el ID token de Firebase en sus rutas de administración (/nodes, /readings, ...).
+# Pásalo con INTEGRATION_FIREBASE_ID_TOKEN (caduca en 1 hora). /health sigue abierto.
+FIREBASE_ID_TOKEN = os.getenv("INTEGRATION_FIREBASE_ID_TOKEN")
+
+
 def _get_json(url: str, timeout: float = 5):
-    with urllib.request.urlopen(url, timeout=timeout) as response:
+    headers = {"Authorization": f"Bearer {FIREBASE_ID_TOKEN}"} if FIREBASE_ID_TOKEN else {}
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read())
 
 

@@ -9,6 +9,7 @@ que abre conexiones.
 """
 import json
 import logging
+import ssl
 import threading
 import uuid
 from typing import Any
@@ -57,6 +58,36 @@ def build_create_node_commands(building_code: str, node_code: str, token: str) -
     ]
 
 
+CONSUMER_SUBSCRIPTION = "sentinel/v1/+/+/telemetry/aggregate"
+
+
+def consumer_role_name(username: str) -> str:
+    return f"consumer-{username}"
+
+
+def build_consumer_commands(username: str, password: str) -> list[dict[str, Any]]:
+    """Rol que solo permite suscribirse a la telemetría de todos los nodos, y el cliente del consumidor."""
+    role = consumer_role_name(username)
+    return [
+        {
+            "command": "createRole",
+            "rolename": role,
+            "acls": [{
+                "acltype": "subscribePattern",
+                "topic": CONSUMER_SUBSCRIPTION,
+                "priority": 1,
+                "allow": True,
+            }],
+        },
+        {
+            "command": "createClient",
+            "username": username,
+            "password": password,
+            "roles": [{"rolename": role}],
+        },
+    ]
+
+
 def build_disable_node_commands(node_code: str) -> list[dict[str, Any]]:
     """Deshabilitar el cliente impide nuevas conexiones y desconecta la sesión activa."""
     return [{"command": "disableClient", "username": node_code}]
@@ -82,6 +113,8 @@ class BrokerAdmin:
         password: str,
         building_code: str,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        use_tls: bool = False,
+        ca_file: str | None = None,
     ) -> None:
         self.host = host
         self.port = port
@@ -89,6 +122,8 @@ class BrokerAdmin:
         self.password = password
         self.building_code = building_code
         self.timeout = timeout
+        self.use_tls = use_tls
+        self.ca_file = ca_file
         self._lock = threading.Lock()  # Las respuestas llegan a un topic común: una orden a la vez.
 
     def create_node(self, node_code: str, token: str) -> None:
@@ -110,6 +145,16 @@ class BrokerAdmin:
             self._send([{"command": "setClientPassword", "username": node_code, "password": token}])
         logger.info("Cliente de nodo registrado en el broker: %s", node_code)
 
+    def upsert_consumer(self, username: str, password: str) -> None:
+        """Crea la cuenta del consumidor de telemetría (escucha) o reemplaza su contraseña. Idempotente."""
+        try:
+            self._send(build_consumer_commands(username, password), tolerate=("Role already exists",))
+        except BrokerAdminError as exc:
+            if "Client already exists" not in str(exc):
+                raise
+            self._send([{"command": "setClientPassword", "username": username, "password": password}])
+        logger.info("Cuenta de consumidor registrada en el broker: %s", username)
+
     def disable_node(self, node_code: str) -> None:
         self._send(build_disable_node_commands(node_code))
         logger.info("Cliente de nodo deshabilitado en el broker: %s", node_code)
@@ -124,6 +169,8 @@ class BrokerAdmin:
                 protocol=mqtt.MQTTv311,
             )
             client.username_pw_set(self.username, self.password)
+            if self.use_tls:
+                client.tls_set(ca_certs=self.ca_file, cert_reqs=ssl.CERT_REQUIRED)
 
             def on_connect(cl, userdata, flags, reason_code, properties=None):
                 if reason_code.is_failure:

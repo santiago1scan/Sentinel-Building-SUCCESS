@@ -2,12 +2,14 @@
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.auth import require_user
 from app.api.routes import (
     alerts,
     app_roles,
@@ -22,6 +24,7 @@ from app.api.routes import (
     sensors,
     zones,
 )
+from app.core.config import settings
 from app.core.database import close_db, init_db
 from app.core.exceptions import AppException
 from app.schemas.common import (
@@ -175,18 +178,32 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # Include routers (CRUD only, no MQTT)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
+    # CORS abierto: cualquier método y header (Authorization, X-Poll-Secret, ...). La autenticación va
+    # en el header Bearer, no en cookies, así que no se habilitan credenciales.
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(health.router)
-app.include_router(buildings.router)
-app.include_router(zones.router)
-app.include_router(nodes.router)
+
+# Rutas de administración: exigen el ID token de Firebase del panel.
+_protected = [Depends(require_user)]
+app.include_router(buildings.router, dependencies=_protected)
+app.include_router(zones.router, dependencies=_protected)
+app.include_router(nodes.router, dependencies=_protected)
+# registrations mezcla rutas del bridge (abiertas, con X-Poll-Secret) y del administrador:
+# la protección va por ruta, dentro del router.
 app.include_router(registrations.router)
-app.include_router(sensor_types.router)
-app.include_router(sensors.router)
-app.include_router(readings.router)
-app.include_router(alerts.router)
-app.include_router(connectivity_logs.router)
-app.include_router(app_users.router)
-app.include_router(app_roles.router)
+app.include_router(sensor_types.router, dependencies=_protected)
+app.include_router(sensors.router, dependencies=_protected)
+app.include_router(readings.router, dependencies=_protected)
+app.include_router(alerts.router, dependencies=_protected)
+app.include_router(connectivity_logs.router, dependencies=_protected)
+app.include_router(app_users.router, dependencies=_protected)
+app.include_router(app_roles.router, dependencies=_protected)
 
 
 @app.get("/")

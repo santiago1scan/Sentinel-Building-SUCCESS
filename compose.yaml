@@ -3,17 +3,19 @@ services:
     image: eclipse-mosquitto:2.0
     container_name: sentinel-mosquitto
     restart: unless-stopped
+    # Solo MQTT sobre TLS. No se publica el 1883: el broker no escucha en claro.
+    # Antes de levantarlo: backend/mosquitto/gen-certs.sh y backend/mosquitto/init.sh (ver su README).
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "8883:8883"
     volumes:
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_logs:/mosquitto/log
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./backend/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./backend/mosquitto/data:/mosquitto/data
+      - ./backend/mosquitto/certs:/mosquitto/certs:ro
     networks:
       - sentinel-net
     healthcheck:
-      test: ["CMD", "mosquitto_sub", "-h", "127.0.0.1", "-t", "$$SYS/#", "-C", "1"]
+      # Con allow_anonymous false un cliente sin credenciales no puede suscribirse: se comprueba el puerto.
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8883"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -47,12 +49,22 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_ENV: development
+      # Cuenta del consumidor en el broker (se crea con provision_consumer; ver backend/mosquitto/README.md).
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 8883
+      MQTT_TLS: "true"
+      MQTT_CA_FILE: /certs/ca.crt
+      MQTT_USERNAME: ${MQTT_CONSUMER_USERNAME:-escucha-consumer}
+      MQTT_PASSWORD: ${MQTT_CONSUMER_PASSWORD:?Define MQTT_CONSUMER_PASSWORD en el .env de la raíz}
     ports:
       - "8089:8089"
     volumes:
       - ./backend/monolito-escucha:/app
+      - ./backend/mosquitto/certs/ca.crt:/certs/ca.crt:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     networks:
       - sentinel-net
@@ -69,10 +81,26 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       APP_ENV: development
+      # Cuenta de administración del broker: crea y deshabilita los clientes de nodo.
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 8883
+      MQTT_TLS: "true"
+      MQTT_CA_FILE: /certs/ca.crt
+      MQTT_ADMIN_USERNAME: admin
+      MQTT_ADMIN_PASSWORD: ${MQTT_ADMIN_PASSWORD:?Define MQTT_ADMIN_PASSWORD en el .env de la raíz}
+      BUILDING_CODE: SB-001
+      # Autenticación del panel: se verifica el ID token de Firebase contra el id del proyecto.
+      # Sin FIREBASE_PROJECT_ID las rutas de administración responden 503 (no quedan abiertas).
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_ADMIN_EMAILS: ${FIREBASE_ADMIN_EMAILS:-}
     ports:
       - "8090:8089"
+    volumes:
+      - ./backend/mosquitto/certs/ca.crt:/certs/ca.crt:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      mosquitto:
         condition: service_healthy
     networks:
       - sentinel-net
@@ -103,6 +131,7 @@ services:
       - sentinel-net
     volumes:
       - bridge_data:/app/data_bridge
+      - ./backend/mosquitto/certs/ca.crt:/certs/ca.crt:ro
     environment:
       # Tokens por nodo: "NODE-FLOOR-1=token1,NODE-FLOOR-2=token2" (definir en .env de la raíz)
       SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
@@ -116,7 +145,8 @@ services:
       --listen-host 0.0.0.0 --listen-port 8766 --data-dir /app/data_bridge
       --building-code SB-001 --interval 30
       --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate
-      --mqtt-host mosquitto --mqtt-port 1883
+      --mqtt-host mosquitto --mqtt-port 8883
+      --mqtt-tls --mqtt-ca-file /certs/ca.crt
 
   mqtt-sensor-simulator:
     build:
@@ -163,6 +193,8 @@ services:
       INTEGRATION_ESCUCHA_URL: http://monolito-escucha:8089
       INTEGRATION_CONSULTA_URL: http://monolito-consulta:8089
       INTEGRATION_BRIDGE_URL: http://bridge:8766
+      # ID token de Firebase vigente: consulta protege /nodes y /readings.
+      INTEGRATION_FIREBASE_ID_TOKEN: ${INTEGRATION_FIREBASE_ID_TOKEN:-}
       INTEGRATION_SIMULATOR_DIR: /simulator
       PYTHONUNBUFFERED: "1"
     command: sh -c "pip install -q -r requirements-dev.txt && pytest tests/integration -v"
@@ -171,8 +203,6 @@ volumes:
   postgres_data:
   bridge_data:
   simulator_data:
-  mosquitto_data:
-  mosquitto_logs:
 
 networks:
   sentinel-net:

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     mqtt_port: int = 1883
     mqtt_username: str | None = None
     mqtt_password: str | None = None
+    # TLS: el broker del repositorio solo escucha en 8883. mqtt_ca_file es la CA que firmó su certificado.
+    mqtt_tls: bool = False
+    mqtt_ca_file: str | None = None
 
 
 settings = Settings()

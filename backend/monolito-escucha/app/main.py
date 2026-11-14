@@ -41,6 +41,8 @@ async def lifespan(app: FastAPI):
             broker_port=settings.mqtt_port,
             username=settings.mqtt_username,
             password=settings.mqtt_password,
+            use_tls=settings.mqtt_tls,
+            ca_file=settings.mqtt_ca_file,
         )
         _mqtt_consumer.set_message_handler(create_async_message_handler(mqtt_handler))
         _mqtt_consumer.start()
