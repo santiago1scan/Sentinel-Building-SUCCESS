@@ -122,14 +122,15 @@ async def test_open_alerts_put_emergencies_first_and_the_biggest_deviation_on_to
 
 async def test_ended_and_handled_alert_leaves_the_open_list(seeded):
     client, ids = seeded
-    await client.post(f"/alerts/{ids['closed']}/handle", json={"user_id": ids["guard"]})
+    await client.post(f"/alerts/{ids['closed']}/handle")
     open_ids = [a["alert_id"] for a in (await client.get("/alerts/open")).json()]
     assert ids["closed"] not in open_ids
 
 
 async def test_handle_records_who_and_when_and_keeps_the_event_open(seeded):
     client, ids = seeded
-    response = await client.post(f"/alerts/{ids['big']}/handle", json={"user_id": ids["guard"]})
+    # The guard comes from the Firebase token, not from the body: a user_id in the body is ignored (security review).
+    response = await client.post(f"/alerts/{ids['big']}/handle", json={"user_id": 999999})
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["handled_by_user_id"] == ids["guard"]
@@ -142,8 +143,24 @@ async def test_handle_records_who_and_when_and_keeps_the_event_open(seeded):
 
 async def test_handle_unknown_alert_is_404(seeded):
     client, ids = seeded
-    response = await client.post("/alerts/999999/handle", json={"user_id": ids["guard"]})
+    response = await client.post("/alerts/999999/handle")
     assert response.status_code == 404
+
+
+async def test_handle_by_a_login_without_app_user_is_403(seeded):
+    client, ids = seeded
+    app.dependency_overrides[require_user] = lambda: FirebaseUser(uid="x", email="nadie@example.com",
+                                                                  email_verified=True)
+    response = await client.post(f"/alerts/{ids['big']}/handle")
+    assert response.status_code == 403
+
+
+async def test_handle_with_unverified_email_is_403(seeded):
+    client, ids = seeded
+    app.dependency_overrides[require_user] = lambda: FirebaseUser(uid="x", email="guarda@example.com",
+                                                                  email_verified=False)
+    response = await client.post(f"/alerts/{ids['big']}/handle")
+    assert response.status_code == 403
 
 
 async def test_history_lists_every_half_hour_and_marks_the_missing_one(seeded):

@@ -65,7 +65,3 @@ class OpenAlert(AlertRead):
     normal_minimum: float | None = None
     normal_maximum: float | None = None
     other_open_count: int = 0
-
-
-class AlertHandle(BaseModel):
-    user_id: int

@@ -3,8 +3,12 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.deps import get_alert_service
-from app.schemas.alert import AlertCreate, AlertHandle, AlertRead, AlertUpdate, OpenAlert
+from app.api.auth import require_user
+from app.api.deps import get_alert_service, get_app_user_repo
+from app.core.exceptions import ForbiddenError
+from app.core.firebase_auth import FirebaseUser
+from app.repositories.app_user_repository import AppUserRepository
+from app.schemas.alert import AlertCreate, AlertRead, AlertUpdate, OpenAlert
 from app.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -44,11 +48,19 @@ async def get_unhandled_alerts(
 @router.post("/{alert_id}/handle", response_model=AlertRead)
 async def handle_alert(
     alert_id: int,
-    body: AlertHandle,
+    caller: FirebaseUser = Depends(require_user),
+    users: AppUserRepository = Depends(get_app_user_repo),
     service: AlertService = Depends(get_alert_service),
 ):
-    """The guard marks the alert as handled (who and when). The event stays open until the data is normal."""
-    alert = await service.handle(alert_id, body.user_id)
+    """The guard marks the alert as handled (who and when). The event stays open until the data is normal.
+
+    The guard is the signed-in Firebase user (verified email matched to app_user), never an id sent in the body:
+    otherwise anyone signed in could record that someone else handled it (security review, 14-Nov-2026).
+    """
+    user = await users.get_by_email(caller.email) if caller.email and caller.email_verified else None
+    if user is None:
+        raise ForbiddenError("Your login has no verified email registered in app_user")
+    alert = await service.handle(alert_id, user.user_id)
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
     return alert
