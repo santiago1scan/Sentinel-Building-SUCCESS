@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_alert_service
-from app.schemas.alert import AlertCreate, AlertRead, AlertUpdate
+from app.schemas.alert import AlertCreate, AlertHandle, AlertRead, AlertUpdate, OpenAlert
 from app.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -25,6 +25,33 @@ async def list_alerts(
     service: AlertService = Depends(get_alert_service),
 ):
     return await service.get_all(limit=limit, offset=offset)
+
+
+# Fixed paths go before "/{alert_id}"; declared after it they never match (unhandled answered 422 before).
+@router.get("/open", response_model=list[OpenAlert])
+async def list_open_alerts(service: AlertService = Depends(get_alert_service)):
+    """Open alerts with floor, zone, sensor and normal range; emergencies first, biggest deviation on top."""
+    return await service.get_open()
+
+
+@router.get("/unhandled", response_model=Sequence[AlertRead])
+async def get_unhandled_alerts(
+    service: AlertService = Depends(get_alert_service),
+):
+    return await service.get_unhandled()
+
+
+@router.post("/{alert_id}/handle", response_model=AlertRead)
+async def handle_alert(
+    alert_id: int,
+    body: AlertHandle,
+    service: AlertService = Depends(get_alert_service),
+):
+    """The guard marks the alert as handled (who and when). The event stays open until the data is normal."""
+    alert = await service.handle(alert_id, body.user_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
 
 
 @router.get("/{alert_id}", response_model=AlertRead)
@@ -75,10 +102,3 @@ async def get_alerts_by_handled_user(
     service: AlertService = Depends(get_alert_service),
 ):
     return await service.get_by_handled_user(user_id)
-
-
-@router.get("/unhandled", response_model=Sequence[AlertRead])
-async def get_unhandled_alerts(
-    service: AlertService = Depends(get_alert_service),
-):
-    return await service.get_unhandled()

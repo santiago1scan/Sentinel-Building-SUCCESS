@@ -5,9 +5,11 @@ from app.models.app_user import AppUser
 from app.models.base import Base
 from app.models.building import Building
 from app.models.connectivity_log import ConnectivityLog
+from app.models.ingest_message import IngestMessage
 from app.models.node import Node
 from app.models.reading import Reading
 from app.models.sensor import Sensor
+from app.models.sensor_metric import SensorMetric
 from app.models.sensor_type import SensorType
 from app.models.zone import Zone
 
@@ -21,9 +23,11 @@ __all__ = [
     "Alert",
     "Building",
     "ConnectivityLog",
+    "IngestMessage",
     "Node",
     "Reading",
     "Sensor",
+    "SensorMetric",
     "SensorType",
     "Zone",
 ]

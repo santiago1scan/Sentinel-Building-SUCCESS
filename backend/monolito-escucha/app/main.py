@@ -1,4 +1,5 @@
 """Main FastAPI application - MQTT Listener & Telemetry Processor."""
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 
@@ -10,7 +11,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import health, telemetry
 from app.core.config import settings
-from app.core.database import close_db, init_db
+from app.analytics.silence_monitor import run_silence_monitor
+from app.core.database import async_session_maker, close_db, init_db
 from app.core.exceptions import AppException
 from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
 from app.services.mqtt_consumer_service import MQTTConsumerService
@@ -52,9 +54,15 @@ async def lifespan(app: FastAPI):
         logger = logging.getLogger(__name__)
         logger.error(f"⚠️  No se pudo inicializar MQTT Consumer: {e}")
 
+    silence_task = asyncio.create_task(run_silence_monitor(
+        async_session_maker, every_seconds=settings.silence_check_seconds,
+        threshold_minutes=settings.silence_threshold_minutes,
+    ))
+
     yield
 
     # Cleanup
+    silence_task.cancel()
     if _mqtt_consumer:
         _mqtt_consumer.stop()
 

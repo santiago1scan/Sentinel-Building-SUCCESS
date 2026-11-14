@@ -6,6 +6,11 @@ from pydantic import BaseModel, Field
 
 # --- Enums para campos de tipo fijo/categoría ---
 
+class MessageTypeEnum(str, Enum):
+    OUT_OF_RANGE = "out_of_range"  # incident, sent as soon as the bridge detects it
+    HALF_HOUR_SUMMARY = "half_hour_summary"  # avg/max/min of each variable + booleans
+
+
 class PriorityEnum(str, Enum):
     NORMAL = "normal"
     HIGH = "high"
@@ -73,7 +78,9 @@ class SensorDTO(BaseModel):
     sensor_model: str
     measurement_type: Union[MeasurementTypeEnum, str]
     sample_count: int
-    data: SensorDataPayload
+    # A plain dict on purpose: with the typed union, pydantic matched every payload to the first model
+    # (TemperatureSensorData, all fields optional) and silently dropped the keys it did not know.
+    data: Dict[str, Any]
 
 class BridgeDTO(BaseModel):
     node_uid: str

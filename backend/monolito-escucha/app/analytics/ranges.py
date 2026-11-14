@@ -1,0 +1,76 @@
+"""Normal and physical ranges per variable, and how a value is judged against them.
+
+Defaults come from Parametros_Normales_Cauca_Colombia.xlsx (sheet Umbrales_Normales, Popayan 2026). They are only
+used when a variable is first seen; after that the database row (sensor_metric) is the source of truth.
+"""
+from dataclasses import dataclass
+from typing import Literal, Protocol
+
+Status = Literal["normal", "above", "below", "impossible", "no_range"]
+
+
+class RangeLike(Protocol):
+    normal_minimum: float | None
+    normal_maximum: float | None
+    physical_minimum: float | None
+    physical_maximum: float | None
+    alarm_below: bool
+    alarm_above: bool
+
+
+@dataclass(frozen=True)
+class Range:
+    normal_minimum: float | None = None
+    normal_maximum: float | None = None
+    physical_minimum: float | None = None
+    physical_maximum: float | None = None
+    alarm_below: bool = True
+    alarm_above: bool = True
+    unit: str | None = None
+
+
+DEFAULT_RANGES: dict[str, Range] = {
+    # BME688
+    "temperature_c": Range(10, 31, -40, 85, unit="°C"),
+    "humidity_percent": Range(72.78, 94.48, 0, 100, unit="%"),
+    # The Excel range (1013.7-1024 hPa) is sea-level pressure; at ~1,740 m Popayan reads ~825 hPa, so every
+    # reading would be out of range. No normal range until it is measured on site.
+    "pressure_hpa": Range(None, None, 300, 1100, unit="hPa"),
+    # IAQ below 51 is "Excellent" air (Bosch table 6): out of range, but not an alarm.
+    "iaq_index": Range(51, 100, 0, 500, alarm_below=False, unit="IAQ"),
+    # ADXL355: project proposal, below MMI IV (0.0276 g), Worden et al. (2012)
+    "x_g": Range(-0.01, 0.01, unit="g"),
+    "y_g": Range(-0.01, 0.01, unit="g"),
+    "z_g": Range(0.99, 1.01, unit="g"),
+}
+
+
+def _f(value) -> float | None:
+    return None if value is None else float(value)
+
+
+def evaluate(value: float, r: RangeLike) -> Status:
+    if (_f(r.physical_minimum) is not None and value < _f(r.physical_minimum)) or (
+        _f(r.physical_maximum) is not None and value > _f(r.physical_maximum)
+    ):
+        return "impossible"
+    low, high = _f(r.normal_minimum), _f(r.normal_maximum)
+    if low is None and high is None:
+        return "no_range"
+    if high is not None and value > high:
+        return "above" if r.alarm_above else "normal"
+    if low is not None and value < low:
+        return "below" if r.alarm_below else "normal"
+    return "normal"
+
+
+def deviation(value: float, r: RangeLike) -> float:
+    """How far outside the normal range, in widths of the range (0 when inside or without a full range)."""
+    low, high = _f(r.normal_minimum), _f(r.normal_maximum)
+    if low is None or high is None or high <= low:
+        return 0
+    if value > high:
+        return (value - high) / (high - low)
+    if value < low:
+        return (low - value) / (high - low)
+    return 0
