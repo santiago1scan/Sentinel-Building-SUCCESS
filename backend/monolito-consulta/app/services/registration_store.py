@@ -27,8 +27,8 @@ class Registration:
     id: str
     code: str
     name: str
-    building_code: str
-    zone_code: str
+    building_id: int
+    requested_zone_id: int
     poll_secret_hash: str
     created_at: datetime
     expires_at: datetime
@@ -62,13 +62,13 @@ class RegistrationStore:
             if item.status in (RegistrationStatus.PENDING, RegistrationStatus.APPROVED) and now >= item.expires_at:
                 item.status = RegistrationStatus.EXPIRED
 
-    def create(self, code: str, name: str, building_code: str, zone_code: str) -> tuple[Registration, str]:
+    def create(self, code: str, name: str, building_id: int, requested_zone_id: int) -> tuple[Registration, str]:
         """Crea la solicitud. Devuelve la solicitud y el secreto de sondeo, que solo se muestra una vez."""
         self._expire()
         secret = secrets.token_urlsafe(32)
         now = self.now()
         item = Registration(
-            id=uuid.uuid4().hex, code=code, name=name, building_code=building_code, zone_code=zone_code,
+            id=uuid.uuid4().hex, code=code, name=name, building_id=building_id, requested_zone_id=requested_zone_id,
             poll_secret_hash=hash_secret(secret), created_at=now, expires_at=now + self.ttl,
         )
         self._items[item.id] = item

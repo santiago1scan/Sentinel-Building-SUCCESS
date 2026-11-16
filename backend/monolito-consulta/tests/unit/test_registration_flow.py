@@ -58,11 +58,24 @@ class FakeNodes:
 
 
 class FakeZones:
+    """Todas las zonas pertenecen al edificio 1, salvo que se indique otra cosa en `building_of`."""
+
+    def __init__(self, existing=(1,), building_of=None):
+        self.existing = set(existing)
+        self.building_of = building_of or {}
+
+    async def get(self, zone_id):
+        if zone_id not in self.existing:
+            return None
+        return SimpleNamespace(zone_id=zone_id, building_id=self.building_of.get(zone_id, 1))
+
+
+class FakeBuildings:
     def __init__(self, existing=(1,)):
         self.existing = set(existing)
 
-    async def get(self, zone_id):
-        return SimpleNamespace(zone_id=zone_id) if zone_id in self.existing else None
+    async def get(self, building_id):
+        return SimpleNamespace(building_id=building_id) if building_id in self.existing else None
 
 
 class FakeBroker:
@@ -77,17 +90,18 @@ class FakeBroker:
         self.created.append((code, token))
 
 
-def build(clock=None, broker=None, zones=None):
+def build(clock=None, broker=None, zones=None, buildings=None):
     EVENTS.clear()
     clock = clock or Clock()
     store = RegistrationStore(ttl_seconds=300, clock=clock)
     nodes = FakeNodes()
-    service = RegistrationService(store, nodes, zones or FakeZones(), broker or FakeBroker())
+    service = RegistrationService(store, nodes, zones or FakeZones(), broker or FakeBroker(),
+                                  buildings or FakeBuildings())
     return service, store, nodes, clock
 
 
 def request_body(code="NODE-FLOOR-3"):
-    return RegistrationRequest(code=code, name="Bridge 3", building_code="SB-001", zone_code="ZONE-F3")
+    return RegistrationRequest(code=code, name="Bridge 3", building_id=1, zone_id=1)
 
 
 # --- Almacén: tiempo de vida y secreto ---
@@ -95,7 +109,7 @@ def request_body(code="NODE-FLOOR-3"):
 def test_registration_expires_after_ttl():
     clock = Clock()
     store = RegistrationStore(ttl_seconds=300, clock=clock)
-    item, _ = store.create("NODE-X", "x", "SB-001", "Z")
+    item, _ = store.create("NODE-X", "x", 1, 1)
 
     clock.advance(299)
     assert store.get(item.id).status == RegistrationStatus.PENDING
@@ -107,7 +121,7 @@ def test_registration_expires_after_ttl():
 
 def test_poll_secret_is_verified_by_hash_only():
     store = RegistrationStore(ttl_seconds=300, clock=Clock())
-    item, secret = store.create("NODE-X", "x", "SB-001", "Z")
+    item, secret = store.create("NODE-X", "x", 1, 1)
 
     assert store.verify_secret(item, secret)
     assert not store.verify_secret(item, "otro-secreto")

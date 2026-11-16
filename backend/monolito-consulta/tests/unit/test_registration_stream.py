@@ -24,7 +24,7 @@ async def test_stream_sends_current_list_on_connect_and_again_on_change():
     assert first.startswith("event: pending")
     assert json.loads(first.split("data: ", 1)[1].strip()) == []
 
-    store.create("NODE-X", "Bridge X", "SB-001", "ZONE-X")
+    store.create("NODE-X", "Bridge X", 1, 1)
 
     second = await asyncio.wait_for(events.__anext__(), 3)
     payload = json.loads(second.split("data: ", 1)[1].strip())
@@ -37,6 +37,6 @@ def test_store_version_grows_with_each_change():
     store = RegistrationStore(ttl_seconds=300)
     before = store.version
 
-    store.create("NODE-Y", "Bridge Y", "SB-001", "ZONE-Y")
+    store.create("NODE-Y", "Bridge Y", 1, 1)
 
     assert store.version > before
