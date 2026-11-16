@@ -1,0 +1,105 @@
+/*
+ * Los colores salen de --status-* según data-status. Cada estado define
+ * --s (color fuerte), --s-bg (fondo) y --s-text (texto), todos desde tokens.css.
+ */
+.card {
+  --s: var(--text-muted);
+  --s-bg: var(--surface);
+  --s-text: var(--text);
+
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding: 16px;
+  min-width: 0;
+  border: 2px solid var(--s);
+  border-radius: 13px;
+  background: var(--s-bg);
+  color: var(--s-text);
+  box-shadow: var(--shadow-card);
+}
+
+.card[data-status="alert"] {
+  --s: var(--status-alert);
+  --s-bg: var(--status-alert-bg);
+  --s-text: var(--status-alert-text);
+}
+
+.card[data-status="warning"] {
+  --s: var(--status-warning);
+  --s-bg: var(--status-warning-bg);
+  --s-text: var(--status-warning-text);
+}
+
+.card[data-status="connected"] {
+  --s: var(--status-connected);
+  --s-bg: var(--status-connected-bg);
+  --s-text: var(--status-connected-text);
+}
+
+.card[data-status="off"] {
+  --s: var(--status-off);
+  --s-bg: var(--status-off-bg);
+  --s-text: var(--status-off-text);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.name {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--s);
+  color: var(--surface);
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.details div {
+  min-width: 0;
+}
+
+.details dt {
+  font-size: 12px;
+  color: var(--s-text);
+  opacity: 0.85;
+}
+
+.details dd {
+  margin: 2px 0 0;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.alerts {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--status-alert-text);
+  font-weight: bold;
+}
