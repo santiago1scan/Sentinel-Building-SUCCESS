@@ -15,6 +15,10 @@ async def _columns(table: str) -> set[str]:
     return {r["column_name"] for r in rows}
 
 
+BEFORE_ANALYTICS = "a1d3f0c7b2e4"  # revision just before the analytics migration
+BEFORE_FLOOR = "b7e2c9a4d1f0"  # the analytics migration: the head before the floor table
+
+
 def test_upgrade_and_downgrade_round_trip():
     reset_schema()
 
@@ -28,7 +32,8 @@ def test_upgrade_and_downgrade_round_trip():
             "last_seen_at", "ended_at", "peak_value", "deviation", "reading_count",
             "handled_at"} <= asyncio.run(_columns("alert"))
 
-    down = run_alembic("downgrade", "-1")
+    # Back to before the analytics migration (this also undoes the floor migration, which comes after it).
+    down = run_alembic("downgrade", BEFORE_ANALYTICS)
     assert down.returncode == 0, down.stderr
     assert asyncio.run(_columns("sensor_metric")) == set()
     assert "aggregation" not in asyncio.run(_columns("reading"))
@@ -46,3 +51,20 @@ def test_models_match_migrated_schema():
         declared = {c.name for c in table.columns}
         missing = declared - asyncio.run(_columns(table.name))
         assert not missing, f"{table.name}: {missing}"
+
+
+def test_floor_table_replaces_the_zone_floor_number():
+    reset_schema()
+
+    assert {"floor_id", "building_id", "level", "name"} <= asyncio.run(_columns("floor"))
+    zone = asyncio.run(_columns("zone"))
+    assert "floor_id" in zone and "floor" not in zone
+
+    down = run_alembic("downgrade", BEFORE_FLOOR)
+    assert down.returncode == 0, down.stderr
+    assert asyncio.run(_columns("floor")) == set()
+    zone = asyncio.run(_columns("zone"))
+    assert "floor" in zone and "floor_id" not in zone
+
+    up = run_alembic("upgrade", "head")
+    assert up.returncode == 0, up.stderr

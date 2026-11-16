@@ -10,8 +10,8 @@ from app.api.auth import require_user
 from app.core.database import get_db
 from app.core.firebase_auth import FirebaseUser
 from app.main import app
-from app.models import (Alert, AppRole, AppUser, Building, IngestMessage, Node, Reading, Sensor, SensorMetric,
-                        SensorType, Zone)
+from app.models import (Alert, AppRole, AppUser, Building, Floor, IngestMessage, Node, Reading, Sensor,
+                        SensorMetric, SensorType, Zone)
 from tests.db.conftest import TEST_DATABASE_URL, areset_schema
 
 T0 = datetime(2026, 11, 13, 10, 0, tzinfo=timezone.utc)
@@ -26,7 +26,10 @@ async def seeded():
         building = Building(name="Sentinel")
         s.add(building)
         await s.flush()
-        zone = Zone(building_id=building.building_id, name="Piso 1", floor=1)
+        floor = Floor(building_id=building.building_id, level=1, name="Primer piso")
+        s.add(floor)
+        await s.flush()
+        zone = Zone(building_id=building.building_id, name="Piso 1", floor_id=floor.floor_id)
         s.add(zone)
         await s.flush()
         node = Node(code="NODE-FLOOR-1", name="Bridge piso 1", zone_id=zone.zone_id)
@@ -74,7 +77,10 @@ async def seeded():
         other_building = Building(name="Otro edificio")
         s.add(other_building)
         await s.flush()
-        other_zone = Zone(building_id=other_building.building_id, name="Piso 1", floor=1)
+        other_floor = Floor(building_id=other_building.building_id, level=1, name="Primer piso")
+        s.add(other_floor)
+        await s.flush()
+        other_zone = Zone(building_id=other_building.building_id, name="Piso 1", floor_id=other_floor.floor_id)
         s.add(other_zone)
         await s.flush()
         other_node = Node(code="NODE-OTHER", name="Bridge otro", zone_id=other_zone.zone_id)
@@ -113,7 +119,7 @@ async def test_open_alerts_put_emergencies_first_and_the_biggest_deviation_on_to
     top = body[1]
     assert top["metric_code"] == "iaq_index" and top["unit"] == "IAQ"
     assert (top["normal_minimum"], top["normal_maximum"]) == (51, 100)
-    assert top["floor"] == 1 and top["zone_name"] == "Piso 1"
+    assert top["floor"] == 1 and top["floor_name"] == "Primer piso" and top["zone_name"] == "Piso 1"
     assert top["node_code"] == "NODE-FLOOR-1" and top["sensor_code"] == "GAS-F1"
     assert top["peak_value"] == 300
     assert top["other_open_count"] == 3  # same building only (review D2)

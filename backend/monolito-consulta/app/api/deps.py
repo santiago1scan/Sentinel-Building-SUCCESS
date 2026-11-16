@@ -16,6 +16,7 @@ from app.repositories.node_repository import NodeRepository
 from app.repositories.reading_repository import ReadingRepository
 from app.repositories.sensor_repository import SensorRepository
 from app.repositories.sensor_type_repository import SensorTypeRepository
+from app.repositories.floor_repository import FloorRepository
 from app.repositories.zone_repository import ZoneRepository
 from app.services.alert_service import AlertService
 from app.services.registration_service import RegistrationService
@@ -29,6 +30,7 @@ from app.services.reading_service import ReadingService
 from app.services.sensor_service import SensorService
 from app.services.sensor_type_service import SensorTypeService
 from app.services.telemetry_service import TelemetryService
+from app.services.floor_service import FloorService
 from app.services.zone_service import ZoneService
 
 
@@ -37,6 +39,12 @@ async def get_building_repo(
     db: AsyncSession = Depends(get_db),
 ) -> AsyncGenerator[BuildingRepository, None]:
     yield BuildingRepository(db)
+
+
+async def get_floor_repo(
+    db: AsyncSession = Depends(get_db),
+) -> AsyncGenerator[FloorRepository, None]:
+    yield FloorRepository(db)
 
 
 async def get_zone_repo(
@@ -100,10 +108,18 @@ async def get_building_service(
     yield BuildingService(repo)
 
 
+async def get_floor_service(
+    repo: FloorRepository = Depends(get_floor_repo),
+    buildings: BuildingRepository = Depends(get_building_repo),
+) -> AsyncGenerator[FloorService, None]:
+    yield FloorService(repo, buildings)
+
+
 async def get_zone_service(
     repo: ZoneRepository = Depends(get_zone_repo),
+    floors: FloorRepository = Depends(get_floor_repo),
 ) -> AsyncGenerator[ZoneService, None]:
-    yield ZoneService(repo)
+    yield ZoneService(repo, floors)
 
 
 def get_broker_admin() -> BrokerAdmin | None:

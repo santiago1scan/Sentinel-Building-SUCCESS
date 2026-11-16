@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 class ZoneBase(BaseModel):
     building_id: int
     name: str
-    floor: int | None = None
+    floor_id: int | None = None
 
 
 class ZoneCreate(ZoneBase):
@@ -16,7 +16,7 @@ class ZoneCreate(ZoneBase):
 class ZoneUpdate(BaseModel):
     building_id: int | None = None
     name: str | None = None
-    floor: int | None = None
+    floor_id: int | None = None
 
 
 class ZoneRead(ZoneBase):

@@ -6,7 +6,7 @@ import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.models import (Alert, Building, IngestMessage, Node, Reading, Sensor, SensorMetric, SensorType,
+from app.models import (Alert, Building, Floor, IngestMessage, Node, Reading, Sensor, SensorMetric, SensorType,
                         Zone)
 from app.services.DTOS.telemetry_dto import TelemetryAggregateDTO
 from app.services.telemetry_service import TelemetryService
@@ -26,7 +26,10 @@ async def session():
         building = Building(name="Sentinel")
         s.add(building)
         await s.flush()
-        zone = Zone(building_id=building.building_id, name="Piso 1", floor=1)
+        floor = Floor(building_id=building.building_id, level=1, name="Primer piso")
+        s.add(floor)
+        await s.flush()
+        zone = Zone(building_id=building.building_id, name="Piso 1", floor_id=floor.floor_id)
         s.add(zone)
         await s.flush()
         node = Node(code=NODE_CODE, name="Bridge piso 1", zone_id=zone.zone_id)
@@ -218,3 +221,12 @@ async def test_power_source_battery_is_stored_as_1_and_opens_a_notice(session):
                                   [(POWER, "INA219", {"power_source": "main"})]))
     await session.refresh(alert)
     assert alert.ended_at == T0 + timedelta(minutes=3)
+
+
+async def test_telemetry_by_node_reports_the_floor_of_its_zone(session):
+    node = (await session.execute(select(Node).where(Node.code == NODE_CODE))).scalar_one()
+
+    data = await TelemetryService.for_session(session).get_telemetry_by_node(node.node_id)
+
+    assert data["zone"]["floor"] == 1
+    assert data["zone"]["floor_name"] == "Primer piso"
