@@ -1,11 +1,7 @@
 
 import { useEffect, useState } from "react";
 
-import MainLayout from "./layouts/MainLayout";
-import Dashboard from "./pages/Dashboard";
-import Buildings from "./pages/Buildings";
-import Zones from "./pages/Zones";
-import Nodes from "./pages/Nodes";
+import MainLayout from "./shared/ui/templates/MainLayout";
 
 const pages = {
   dashboard: {
@@ -53,34 +49,20 @@ function App() {
     };
   }, []);
 
+  // Las páginas se implementarán en features/. Por ahora todas muestran un marcador.
   function renderPage() {
-    switch (currentPage) {
-      case "dashboard":
-        return <Dashboard />;
-
-      case "buildings":
-        return <Buildings />;
-
-      case "zones":
-        return <Zones />;
-
-      case "nodes":
-        return <Nodes />;
-
-      default:
-        return (
-          <div className="card">
-            <h2>{pages[currentPage]?.title}</h2>
-            <p>Este módulo está en desarrollo.</p>
-          </div>
-        );
-    }
+    return (
+      <div className="card">
+        <h2>{pages[currentPage]?.title}</h2>
+        <p>Este módulo está en desarrollo.</p>
+      </div>
+    );
   }
 
   return (
     <MainLayout
-      title={pages[currentPage].title}
-      subtitle={pages[currentPage].subtitle}
+      title={pages[currentPage]?.title}
+      subtitle={pages[currentPage]?.subtitle}
     >
       {renderPage()}
     </MainLayout>

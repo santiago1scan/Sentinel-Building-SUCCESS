@@ -1,0 +1,57 @@
+/*
+ * Tokens de color del panel Sentinel.
+ *
+ * Regla: los componentes usan solo variables de este archivo, nunca colores literales.
+ * Los colores de marca (--brand-*) son provisionales: reemplazar por los oficiales de la empresa.
+ *
+ * Estados de conexión: cada estado se muestra con color + ícono + etiqueta, nunca solo con color.
+ * Verificado con el validador de paletas (dataviz): rojo y verde son el par más difícil para
+ * daltónicos (ΔE 7.6); por eso el texto de cada estado tiene contraste propio y el ícono
+ * distingue los estados.
+ */
+
+:root {
+  /* Marca (provisional) */
+  --brand-primary: #10213f;        /* navy: barra lateral, encabezados */
+  --brand-primary-strong: #1e40af; /* azul profundo: texto de enlaces y énfasis */
+  --brand-accent: #2563eb;         /* azul: botones y elementos interactivos */
+  --brand-secondary: #0f766e;      /* verde azulado: acento secundario, gráficas */
+
+  /* Superficies y texto */
+  --bg: #f4f7fb;                   /* fondo de la página */
+  --surface: #ffffff;              /* tarjetas */
+  --line: #e3e9f2;                 /* bordes y separadores */
+  --text: #0f172a;                 /* texto principal (17.9:1 sobre surface) */
+  --text-muted: #475569;           /* texto secundario (7.6:1 sobre surface) */
+  --on-primary: #ffffff;           /* texto sobre --brand-primary */
+  --on-primary-soft: #dce6f5;      /* enlaces de navegación sobre --brand-primary */
+  --on-primary-muted: #bdcce1;     /* texto secundario sobre --brand-primary */
+  --on-primary-line: #ffffff30;    /* separadores sobre --brand-primary */
+
+  /* Sombra de tarjetas */
+  --shadow-card: 0 4px 16px #18345c0b;
+
+  /* Estados de conexión: marcador (ícono/punto), texto y fondo de la píldora */
+  --status-connected: #15803d;     /* conectado */
+  --status-connected-text: #14532d;
+  --status-connected-bg: #dcfce7;
+
+  --status-off: #64748b;           /* apagado: neutro, sin color de alerta */
+  --status-off-text: #1e293b;
+  --status-off-bg: #e2e8f0;
+
+  --status-alert: #991b1b;         /* alerta: el más severo */
+  --status-alert-text: #7f1d1d;
+  --status-alert-bg: #fee2e2;
+
+  --status-delayed: #ca8a04;       /* conexión demorada: ámbar */
+  --status-delayed-text: #713f12;
+  --status-delayed-bg: #fef3c7;
+
+  /* Alias de compatibilidad con global.css (se pueden quitar cuando todo use los tokens nuevos) */
+  --navy: var(--brand-primary);
+  --blue: var(--brand-accent);
+  --background: var(--bg);
+  --muted: var(--text-muted);
+  --green: var(--status-connected);
+}

@@ -1,0 +1,28 @@
+/* Estructura principal. El ancho de la barra lateral se define aquí y lo usa Sidebar. */
+
+.appContainer {
+  --sidebar-width: 235px;
+  display: flex;
+  min-height: 100vh;
+}
+
+.mainContent {
+  width: calc(100% - var(--sidebar-width));
+  min-height: 100vh;
+  margin-left: var(--sidebar-width);
+  padding: 26px;
+}
+
+.pageContent {
+  width: 100%;
+}
+
+@media (max-width: 650px) {
+  .appContainer {
+    --sidebar-width: 65px;
+  }
+
+  .mainContent {
+    padding: 15px 10px;
+  }
+}

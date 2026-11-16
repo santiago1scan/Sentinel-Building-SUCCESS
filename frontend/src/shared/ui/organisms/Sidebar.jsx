@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import styles from "./Sidebar.module.css";
 
 const menuItems = [
   { id: "dashboard", name: "Panel principal", icon: "⌂" },
@@ -7,7 +8,6 @@ const menuItems = [
   { id: "zones", name: "Zonas", icon: "▱" },
   { id: "nodes", name: "Nodos sensores", icon: "◉" },
   { id: "events", name: "Eventos", icon: "⚠" },
-  { id: "simulator", name: "Simulador", icon: "▷" },
   { id: "history", name: "Historial", icon: "◷" },
 ];
 
@@ -34,28 +34,28 @@ function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand">
+    <aside className={styles.sidebar}>
+      <div className={styles.brand}>
         <h2>⌂ Sentinel Building</h2>
         <span>Monitoreo y coordinación de emergencias</span>
       </div>
 
-      <nav className="sidebar-nav">
+      <nav className={styles.nav}>
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className={`sidebar-link ${
-              activePage === item.id ? "active" : ""
+            className={`${styles.link} ${
+              activePage === item.id ? styles.active : ""
             }`}
             onClick={() => navigate(item.id)}
           >
-            <span className="sidebar-icon">{item.icon}</span>
+            <span className={styles.icon}>{item.icon}</span>
             {item.name}
           </button>
         ))}
       </nav>
 
-      <div className="sidebar-profile">
+      <div className={styles.profile}>
         <strong>Administrador</strong>
         <span>admin@sentinel.local</span>
       </div>
