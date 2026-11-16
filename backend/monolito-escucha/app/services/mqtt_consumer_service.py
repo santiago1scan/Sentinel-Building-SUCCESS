@@ -1,6 +1,7 @@
 """MQTT Consumer Service - Listen to sensor telemetry from MQTT broker."""
 import json
 import logging
+import ssl
 import threading
 from typing import Callable
 
@@ -26,12 +27,16 @@ class MQTTConsumerService:
         client_id: str = "sentinel-monolito-escucha",
         username: str | None = None,
         password: str | None = None,
+        use_tls: bool = False,
+        ca_file: str | None = None,
     ):
         self.broker_host = broker_host
         self.broker_port = broker_port
         self.client_id = client_id
         self.username = username
         self.password = password
+        self.use_tls = use_tls
+        self.ca_file = ca_file
         self.client = None
         self.is_running = False
         self.message_handler: Callable[[TelemetryAggregateDTO], None] | None = None
@@ -50,6 +55,7 @@ class MQTTConsumerService:
             client.subscribe(AGGREGATE_SUBSCRIPTION, qos=1)
             logger.info(f"📡 Suscrito a: {AGGREGATE_SUBSCRIPTION}")
         else:
+            # rc 4 = usuario o contraseña incorrectos, rc 5 = no autorizado (cuenta del consumidor).
             logger.error(f"❌ Error conectando a MQTT broker: código {rc}")
 
     def _on_message(self, client: mqtt.Client, userdata: dict, msg: mqtt.MQTTMessage) -> None:
@@ -139,6 +145,13 @@ class MQTTConsumerService:
         if level <= mqtt.MQTT_LOG_WARNING:
             logger.debug(f"MQTT: {buf}")
 
+    def _configure_security(self, client: mqtt.Client) -> None:
+        """Credenciales y TLS del consumidor. Con TLS el certificado del broker se valida siempre."""
+        if self.username and self.password:
+            client.username_pw_set(self.username, self.password)
+        if self.use_tls:
+            client.tls_set(ca_certs=self.ca_file, cert_reqs=ssl.CERT_REQUIRED)
+
     def start(self) -> None:
         """Start the MQTT consumer service."""
         if self.is_running:
@@ -153,8 +166,7 @@ class MQTTConsumerService:
             self.client.on_subscribe = self._on_subscribe
             self.client.on_log = self._on_log
 
-            if self.username and self.password:
-                self.client.username_pw_set(self.username, self.password)
+            self._configure_security(self.client)
 
             logger.info(f"🔌 Conectando a MQTT broker en {self.broker_host}:{self.broker_port}...")
             self.client.connect(self.broker_host, self.broker_port, keepalive=60)

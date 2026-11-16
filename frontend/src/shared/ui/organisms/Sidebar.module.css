@@ -1,0 +1,111 @@
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width, 235px);
+  padding: 22px 14px;
+  background: var(--brand-primary);
+  color: var(--on-primary);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.brand {
+  padding: 8px 12px 25px;
+  border-bottom: 1px solid var(--on-primary-line);
+}
+
+.brand h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.brand span {
+  display: block;
+  margin-top: 6px;
+  color: var(--on-primary-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.nav {
+  display: grid;
+  gap: 7px;
+  margin-top: 20px;
+}
+
+.link {
+  padding: 13px;
+  display: block;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--on-primary-soft);
+  text-align: left;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.link:hover,
+.active {
+  background: var(--brand-accent);
+  color: var(--on-primary);
+}
+
+.icon {
+  display: inline-block;
+  width: 25px;
+  font-size: 17px;
+}
+
+.profile {
+  margin-top: auto;
+  padding: 18px 8px;
+  border-top: 1px solid var(--on-primary-line);
+}
+
+.profile strong,
+.profile span {
+  display: block;
+}
+
+.profile span {
+  margin-top: 5px;
+  color: var(--on-primary-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 650px) {
+  .sidebar {
+    padding: 12px 6px;
+  }
+
+  .brand {
+    padding: 10px 4px;
+  }
+
+  .brand h2 {
+    font-size: 0;
+  }
+
+  .brand h2::after {
+    content: "SB";
+    font-size: 18px;
+  }
+
+  .brand span,
+  .profile {
+    display: none;
+  }
+
+  .link {
+    text-align: center;
+    font-size: 0;
+  }
+
+  .icon {
+    font-size: 19px;
+  }
+}

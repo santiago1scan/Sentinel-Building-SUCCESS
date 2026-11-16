@@ -1,10 +1,14 @@
 """Rutas de registro de nodos por solicitud."""
-from collections.abc import Sequence
+import asyncio
+import json
+import time
+from collections.abc import AsyncIterator, Sequence
 
 from fastapi import APIRouter, Depends, Header
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.deps import get_registration_service
+from app.api.auth import require_user, require_user_or_query_token
+from app.api.deps import get_registration_service, get_registration_store
 from app.schemas.registration import (
     ApprovedRegistrationRead,
     ApproveRegistrationRequest,
@@ -14,7 +18,7 @@ from app.schemas.registration import (
     RegistrationRequest,
 )
 from app.services.registration_service import RegistrationService
-from app.services.registration_store import Registration
+from app.services.registration_store import Registration, RegistrationStore
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
@@ -37,7 +41,7 @@ async def request_registration(
     return RegistrationAccepted(registration_id=item.id, poll_secret=secret, expires_at=item.expires_at)
 
 
-@router.get("/pending", response_model=Sequence[PendingRegistrationRead])
+@router.get("/pending", response_model=Sequence[PendingRegistrationRead], dependencies=[Depends(require_user)])
 async def list_pending_registrations(
     service: RegistrationService = Depends(get_registration_service),
 ):
@@ -45,7 +49,41 @@ async def list_pending_registrations(
     return [_pending_read(item) for item in service.list_pending()]
 
 
-@router.post("/{registration_id}/approve", response_model=ApprovedRegistrationRead)
+def format_sse(event: str, data: object) -> str:
+    """Un evento del protocolo Server-Sent Events."""
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+KEEPALIVE_SECONDS = 15
+
+
+async def _pending_events(store: RegistrationStore) -> AsyncIterator[str]:
+    """Emite la lista de pendientes al conectar y cada vez que cambia; comentarios para mantener viva la conexión."""
+    last_version = None
+    last_beat = time.monotonic()
+    while True:
+        if store.version != last_version:
+            last_version = store.version
+            pending = [_pending_read(item).model_dump(mode="json") for item in store.pending()]
+            yield format_sse("pending", pending)
+            last_beat = time.monotonic()
+        elif time.monotonic() - last_beat >= KEEPALIVE_SECONDS:
+            yield ": keepalive\n\n"
+            last_beat = time.monotonic()
+        await asyncio.sleep(1)
+
+
+@router.get("/stream", response_class=StreamingResponse, dependencies=[Depends(require_user_or_query_token)])
+async def stream_pending_registrations(store: RegistrationStore = Depends(get_registration_store)):
+    """Server-Sent Events: el administrador recibe las solicitudes pendientes sin recargar."""
+    return StreamingResponse(
+        _pending_events(store),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/{registration_id}/approve", response_model=ApprovedRegistrationRead, dependencies=[Depends(require_user)])
 async def approve_registration(
     registration_id: str,
     body: ApproveRegistrationRequest,
@@ -58,7 +96,7 @@ async def approve_registration(
     )
 
 
-@router.post("/{registration_id}/reject", response_model=PendingRegistrationRead)
+@router.post("/{registration_id}/reject", response_model=PendingRegistrationRead, dependencies=[Depends(require_user)])
 async def reject_registration(
     registration_id: str,
     service: RegistrationService = Depends(get_registration_service),

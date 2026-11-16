@@ -1,0 +1,64 @@
+/*
+ * Dos columnas pegadas (sin grid ni separación) que ocupan todo el alto disponible.
+ * Cada columna centra su componente; el componente ocupa la columna completa (fondo sin bordes)
+ * y su contenido va centrado. En pantallas angostas las columnas se apilan.
+ */
+.page {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* minmax(0, 1fr): la única fila mide lo que mide la columna, así lo que desborde hace scroll dentro del componente. */
+.form,
+.visual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Lo que va en cada columna ocupa todo el alto y ancho, sin bordes ni sombras. */
+.form > *,
+.visual > * {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  align-content: center;
+  /* "safe": si el contenido no cabe, empieza arriba en vez de cortarse por los dos lados. */
+  align-content: safe center;
+  justify-items: center;
+}
+
+/* El contenido de cada componente va centrado, con un ancho cómodo para leer y escribir.
+   width: 100% evita que justify-items: center encoja las filas al ancho de su contenido. */
+.form > * > *,
+.visual > * > * {
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
+}
+
+.icon {
+  color: var(--accent-text);
+  opacity: 0.85;
+}
+
+@media (max-width: 860px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .visual {
+    order: -1;
+  }
+}

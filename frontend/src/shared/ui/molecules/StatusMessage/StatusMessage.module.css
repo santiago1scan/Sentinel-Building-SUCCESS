@@ -1,0 +1,47 @@
+/* Colores por estado desde tokens.css: funcionan en tema claro y oscuro. */
+.message {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: clamp(20px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.icon {
+  width: 56px;
+  height: 56px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.body {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.success .icon {
+  color: var(--status-connected);
+}
+
+.error {
+  border-color: var(--status-alert);
+}
+
+.error .icon {
+  color: var(--status-alert);
+}
+
+.info .icon {
+  color: var(--accent-text);
+}

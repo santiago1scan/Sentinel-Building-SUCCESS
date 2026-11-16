@@ -1,0 +1,68 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Enlace: sin caja, con el color de énfasis del tema. */
+.inline {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Secundario: solo borde, sin relleno. */
+.ghost {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.ghost:hover {
+  background: var(--surface-2);
+}
+
+/* Principal: relleno de marca. */
+.active {
+  background: var(--brand-accent);
+  color: var(--on-primary);
+}
+
+.active:hover {
+  filter: brightness(1.1);
+}
+
+/* Apagado: sin acción y sin reacción al cursor. */
+.disabled,
+.button:disabled {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.button:disabled:hover {
+  filter: none;
+  background: var(--surface-2);
+}

@@ -1,0 +1,36 @@
+/* Estructura principal. El ancho de la barra lateral se define aquí y lo usa Sidebar. */
+
+.appContainer {
+  --sidebar-width: 235px;
+  display: flex;
+  min-height: 100vh;
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - var(--sidebar-width));
+  height: 100vh;
+  margin-left: var(--sidebar-width);
+  padding: 26px;
+}
+
+/* Ocupa el alto que deja el encabezado: las páginas que llenan la pantalla pueden usar flex: 1. */
+.pageContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+@media (max-width: 650px) {
+  .appContainer {
+    --sidebar-width: 65px;
+  }
+
+  .mainContent {
+    padding: 15px 10px;
+  }
+}

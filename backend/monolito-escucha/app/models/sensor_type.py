@@ -41,3 +41,4 @@ class SensorType(Base):
     normal_maximum: Mapped[decimal.Decimal | None] = mapped_column(Numeric(12, 4))
 
     sensors: Mapped[list["Sensor"]] = relationship("Sensor", back_populates="sensor_type")
+    metrics: Mapped[list["SensorMetric"]] = relationship("SensorMetric", back_populates="sensor_type")

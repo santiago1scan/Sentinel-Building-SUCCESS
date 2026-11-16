@@ -2,7 +2,7 @@
 import datetime
 import decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReadingBase(BaseModel):
@@ -14,7 +14,10 @@ class ReadingBase(BaseModel):
 
 
 class ReadingCreate(ReadingBase):
-    pass
+    message_id: int
+    metric_id: int
+    aggregation: str = Field(pattern="^(raw|avg|max|min)$")
+    sample_count_sensor: int | None = None
 
 
 class ReadingRead(ReadingBase):
@@ -22,3 +25,8 @@ class ReadingRead(ReadingBase):
 
     reading_id: int
     received_at: datetime.datetime
+    message_id: int | None = None
+    metric_id: int | None = None
+    aggregation: str | None = None  # raw = incident; avg/max/min = half-hour summary
+    sample_count_sensor: int | None = None
+    alert_id: int | None = None

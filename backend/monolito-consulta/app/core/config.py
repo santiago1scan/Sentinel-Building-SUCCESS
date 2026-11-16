@@ -22,11 +22,25 @@ class Settings(BaseSettings):
     mqtt_port: int = 1883
     mqtt_admin_username: str | None = None
     mqtt_admin_password: str | None = None
+    # TLS: el broker del repositorio solo escucha en 8883. mqtt_ca_file es la CA que firmó su certificado.
+    mqtt_tls: bool = False
+    mqtt_ca_file: str | None = None
     building_code: str = "SB-001"
 
     # Tiempo que una solicitud de registro de nodo espera aprobación (y una aprobación espera
     # a que el bridge recoja el token). Las solicitudes viven en memoria: un solo proceso.
     registration_ttl_seconds: int = 300
+
+    # Autenticación del panel: el frontend inicia sesión con Firebase y envía el ID token en
+    # `Authorization: Bearer`. Se verifica contra el id del proyecto (no hace falta la API key).
+    # Sin FIREBASE_PROJECT_ID las rutas protegidas responden 503: no quedan abiertas por omisión.
+    firebase_project_id: str | None = None
+    # Correos autorizados, separados por coma. Vacío = cualquier usuario autenticado por Firebase.
+    firebase_admin_emails: str = ""
+
+    # Orígenes del frontend que pueden llamar a la API (separados por coma).
+    # Por defecto abierto ("*"). En producción conviene limitarlo: CORS_ORIGINS=https://panel.ejemplo.com
+    cors_origins: str = "*"
 
 
 settings = Settings()

@@ -118,6 +118,7 @@ class TelemetryService:
             raise ValueError(f"Node {node_id} not found")
 
         zone = await self.zone_repo.get(node.zone_id)
+        floor = await self.zone_repo.get_floor(zone) if zone else None
         building = await self.building_repo.get(zone.building_id) if zone else None
 
         readings = await self.reading_repo.get_by_receiving_node(node_id, limit, offset)
@@ -177,7 +178,8 @@ class TelemetryService:
             "zone": {
                 "zone_id": zone.zone_id,
                 "code": zone.name,
-                "floor": zone.floor,
+                "floor": floor.level if floor else None,
+                "floor_name": floor.name if floor else None,
             }
             if zone
             else None,

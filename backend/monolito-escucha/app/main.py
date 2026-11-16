@@ -1,4 +1,5 @@
 """Main FastAPI application - MQTT Listener & Telemetry Processor."""
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 
@@ -8,11 +9,15 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import health, telemetry
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.routes import alerts, health, telemetry
 from app.core.config import settings
-from app.core.database import close_db, init_db
+from app.analytics.silence_monitor import run_silence_monitor
+from app.core.database import async_session_maker, close_db, init_db
 from app.core.exceptions import AppException
 from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
+from app.services.alert_events import register_alert_event_listeners
 from app.services.mqtt_consumer_service import MQTTConsumerService
 from app.schemas.common import (
     ErrorDetail,
@@ -41,6 +46,8 @@ async def lifespan(app: FastAPI):
             broker_port=settings.mqtt_port,
             username=settings.mqtt_username,
             password=settings.mqtt_password,
+            use_tls=settings.mqtt_tls,
+            ca_file=settings.mqtt_ca_file,
         )
         _mqtt_consumer.set_message_handler(create_async_message_handler(mqtt_handler))
         _mqtt_consumer.start()
@@ -50,9 +57,15 @@ async def lifespan(app: FastAPI):
         logger = logging.getLogger(__name__)
         logger.error(f"⚠️  No se pudo inicializar MQTT Consumer: {e}")
 
+    silence_task = asyncio.create_task(run_silence_monitor(
+        async_session_maker, every_seconds=settings.silence_check_seconds,
+        threshold_minutes=settings.silence_threshold_minutes,
+    ))
+
     yield
 
     # Cleanup
+    silence_task.cancel()
     if _mqtt_consumer:
         _mqtt_consumer.stop()
 
@@ -192,8 +205,19 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # Include routers (only MQTT & Telemetry)
+register_alert_event_listeners()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
+    # Sin credenciales: la autenticación va en el header Bearer, no en cookies.
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(health.router)
 app.include_router(telemetry.router)
+app.include_router(alerts.router)
 
 
 @app.get("/")

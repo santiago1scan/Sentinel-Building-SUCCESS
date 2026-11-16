@@ -61,6 +61,7 @@ class RegistrationService:
             item.zone_id = zone_id
             item.node_id = node.node_id
             self.store.renew(item)
+            self.store.touch()
             return item
 
     async def reject(self, registration_id: str) -> Registration:
@@ -69,6 +70,7 @@ class RegistrationService:
             if item.status != RegistrationStatus.PENDING:
                 raise ConflictError(f"La solicitud está {item.status.value}")
             item.status = RegistrationStatus.REJECTED
+            self.store.touch()
             return item
 
     async def deliver(self, registration_id: str, poll_secret: str) -> DeliveredNodeRead | None:
@@ -98,4 +100,5 @@ class RegistrationService:
                 raise ServiceUnavailableError(f"No se pudo registrar el nodo en el broker: {exc}") from exc
 
             item.status = RegistrationStatus.DELIVERED
+            self.store.touch()
             return DeliveredNodeRead(node_id=node.node_id, node_code=item.code, token=token)

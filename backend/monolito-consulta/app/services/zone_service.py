@@ -1,16 +1,29 @@
 """Zone service."""
 from collections.abc import Sequence
 
-from app.core.exceptions import NotFoundError, ServiceUnavailableError
+from app.core.exceptions import NotFoundError, ServiceUnavailableError, UnprocessableEntityError
+from app.repositories.floor_repository import FloorRepository
 from app.repositories.zone_repository import ZoneRepository
 from app.schemas.zone import ZoneCreate, ZoneRead, ZoneUpdate
 
 
 class ZoneService:
-    def __init__(self, repository: ZoneRepository):
+    def __init__(self, repository: ZoneRepository, floors: FloorRepository | None = None):
         self.repository = repository
+        self.floors = floors
+
+    async def _check_floor(self, building_id: int, floor_id: int | None) -> None:
+        """A zone can only use a floor of its own building (the database enforces it too)."""
+        if floor_id is None or self.floors is None:
+            return
+        floor = await self.floors.get(floor_id)
+        if floor is None:
+            raise NotFoundError(f"Floor with id {floor_id} not found")
+        if floor.building_id != building_id:
+            raise UnprocessableEntityError("The floor belongs to another building")
 
     async def create(self, zone_in: ZoneCreate) -> ZoneRead:
+        await self._check_floor(zone_in.building_id, zone_in.floor_id)
         try:
             zone = await self.repository.create(zone_in)
         except Exception as e:
@@ -34,6 +47,10 @@ class ZoneService:
         zone = await self.repository.get(zone_id)
         if not zone:
             raise NotFoundError(f"Zone with id {zone_id} not found")
+        # What the zone will look like after the change: check building and floor together.
+        building_id = zone_in.building_id if zone_in.building_id is not None else zone.building_id
+        floor_id = zone_in.floor_id if "floor_id" in zone_in.model_fields_set else zone.floor_id
+        await self._check_floor(building_id, floor_id)
         try:
             updated = await self.repository.update(zone, zone_in)
         except Exception as e:

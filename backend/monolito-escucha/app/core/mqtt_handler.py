@@ -8,12 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.services.telemetry_service import TelemetryService
-from app.repositories.building_repository import BuildingRepository
-from app.repositories.zone_repository import ZoneRepository
-from app.repositories.node_repository import NodeRepository
-from app.repositories.sensor_repository import SensorRepository
-from app.repositories.sensor_type_repository import SensorTypeRepository
-from app.repositories.reading_repository import ReadingRepository
 from app.services.DTOS.telemetry_dto import TelemetryAggregateDTO
 from app.core.config import settings
 
@@ -59,22 +53,10 @@ class MQTTMessageHandler:
             logger.info(f"🔄 Procesando telemetría: {telemetry.message_uid}")
 
             async with self.AsyncSessionLocal() as session:
-                building_repo = BuildingRepository(session)
-                zone_repo = ZoneRepository(session)
-                node_repo = NodeRepository(session)
-                sensor_repo = SensorRepository(session)
-                sensor_type_repo = SensorTypeRepository(session)
-                reading_repo = ReadingRepository(session)
-                telemetry_service = TelemetryService(
-                    building_repo,
-                    zone_repo,
-                    node_repo,
-                    sensor_repo,
-                    sensor_type_repo,
-                    reading_repo,
-                )
-
+                telemetry_service = TelemetryService.for_session(session)
                 result = await telemetry_service.process_telemetry(telemetry)
+                # Without this commit nothing received over MQTT was ever stored (13-Nov-2026).
+                await session.commit()
                 logger.info(f"✅ Telemetría procesada: {result['readings_created']} lecturas creadas")
 
                 if result["errors"]:

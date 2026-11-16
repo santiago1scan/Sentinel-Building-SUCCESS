@@ -1,0 +1,113 @@
+.page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.summaryItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 2px solid var(--s);
+  border-radius: 12px;
+  background: var(--s-bg);
+  color: var(--s-text);
+  font-weight: bold;
+  --s: var(--text-muted);
+  --s-bg: var(--surface);
+  --s-text: var(--text);
+}
+
+.summaryItem[data-status="alert"] {
+  --s: var(--status-alert);
+  --s-bg: var(--status-alert-bg);
+  --s-text: var(--status-alert-text);
+}
+
+.summaryItem[data-status="warning"] {
+  --s: var(--status-warning);
+  --s-bg: var(--status-warning-bg);
+  --s-text: var(--status-warning-text);
+}
+
+.summaryItem[data-status="connected"] {
+  --s: var(--status-connected);
+  --s-bg: var(--status-connected-bg);
+  --s-text: var(--status-connected-text);
+}
+
+.summaryItem[data-status="off"] {
+  --s: var(--status-off);
+  --s-bg: var(--status-off-bg);
+  --s-text: var(--status-off-text);
+}
+
+.summaryIcon {
+  color: var(--s);
+}
+
+.summaryCount {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 14px;
+  align-items: end;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.empty {
+  color: var(--text-muted);
+}
+
+.error {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--status-alert-bg);
+  color: var(--status-alert-text);
+  font-weight: bold;
+}
+
+.retry {
+  padding: 9px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  font-weight: bold;
+}

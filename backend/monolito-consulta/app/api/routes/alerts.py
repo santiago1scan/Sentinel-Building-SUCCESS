@@ -3,8 +3,12 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.deps import get_alert_service
-from app.schemas.alert import AlertCreate, AlertRead, AlertUpdate
+from app.api.auth import require_user
+from app.api.deps import get_alert_service, get_app_user_repo
+from app.core.exceptions import ForbiddenError
+from app.core.firebase_auth import FirebaseUser
+from app.repositories.app_user_repository import AppUserRepository
+from app.schemas.alert import AlertCreate, AlertRead, AlertUpdate, OpenAlert
 from app.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -25,6 +29,41 @@ async def list_alerts(
     service: AlertService = Depends(get_alert_service),
 ):
     return await service.get_all(limit=limit, offset=offset)
+
+
+# Fixed paths go before "/{alert_id}"; declared after it they never match (unhandled answered 422 before).
+@router.get("/open", response_model=list[OpenAlert])
+async def list_open_alerts(service: AlertService = Depends(get_alert_service)):
+    """Open alerts with floor, zone, sensor and normal range; emergencies first, biggest deviation on top."""
+    return await service.get_open()
+
+
+@router.get("/unhandled", response_model=Sequence[AlertRead])
+async def get_unhandled_alerts(
+    service: AlertService = Depends(get_alert_service),
+):
+    return await service.get_unhandled()
+
+
+@router.post("/{alert_id}/handle", response_model=AlertRead)
+async def handle_alert(
+    alert_id: int,
+    caller: FirebaseUser = Depends(require_user),
+    users: AppUserRepository = Depends(get_app_user_repo),
+    service: AlertService = Depends(get_alert_service),
+):
+    """The guard marks the alert as handled (who and when). The event stays open until the data is normal.
+
+    The guard is the signed-in Firebase user (verified email matched to app_user), never an id sent in the body:
+    otherwise anyone signed in could record that someone else handled it (security review, 14-Nov-2026).
+    """
+    user = await users.get_by_email(caller.email) if caller.email and caller.email_verified else None
+    if user is None:
+        raise ForbiddenError("Your login has no verified email registered in app_user")
+    alert = await service.handle(alert_id, user.user_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return alert
 
 
 @router.get("/{alert_id}", response_model=AlertRead)
@@ -75,10 +114,3 @@ async def get_alerts_by_handled_user(
     service: AlertService = Depends(get_alert_service),
 ):
     return await service.get_by_handled_user(user_id)
-
-
-@router.get("/unhandled", response_model=Sequence[AlertRead])
-async def get_unhandled_alerts(
-    service: AlertService = Depends(get_alert_service),
-):
-    return await service.get_unhandled()

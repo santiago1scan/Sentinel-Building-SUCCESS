@@ -1,0 +1,28 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px clamp(20px, 6vw, 80px);
+  border-bottom: 1px solid var(--on-primary-line);
+}
+
+.brand {
+  color: var(--on-primary);
+  font-size: 18px;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.button {
+  padding: 10px 16px;
+  border: 1px solid var(--on-primary-line);
+  border-radius: 9px;
+  color: var(--on-primary);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--on-primary-line);
+}

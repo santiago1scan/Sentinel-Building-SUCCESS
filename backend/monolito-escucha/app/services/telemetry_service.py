@@ -1,16 +1,39 @@
-"""Telemetry service - Process and save telemetry data from bridge."""
-import decimal
-from datetime import datetime
-from collections.abc import Sequence
+"""Telemetry service - store bridge messages in the 26-Oct structure and run the alert engine.
 
+Two kinds of message (message_type):
+- out_of_range: an incident sent as soon as the bridge detects it; each value is raw and carries its exact time
+  (generated_at of the message).
+- half_hour_summary: avg/max/min of each variable (`<variable>__avg|max|min`) plus booleans such as battery_low;
+  the readings are dated at the start of the window.
+Any other message type is stored the same way, keys as they come (no alert unless a key matches a known range).
+"""
+import decimal
+import logging
+from collections import defaultdict
+from collections.abc import Callable
+from datetime import datetime, timezone
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.analytics.alert_engine import BATTERY_LOW, ON_BATTERY_POWER, AlertEngine
+from app.analytics.metrics import parse_sensor_values
+from app.models.ingest_message import IngestMessage
+from app.models.reading import Reading
+from app.repositories.analytics_repositories import (AlertRepository, IngestMessageRepository,
+                                                     SensorMetricRepository)
 from app.repositories.building_repository import BuildingRepository
-from app.repositories.zone_repository import ZoneRepository
 from app.repositories.node_repository import NodeRepository
+from app.repositories.reading_repository import ReadingRepository
 from app.repositories.sensor_repository import SensorRepository
 from app.repositories.sensor_type_repository import SensorTypeRepository
-from app.repositories.reading_repository import ReadingRepository
-from app.services.DTOS.telemetry_dto import TelemetryAggregateDTO, SensorDTO, BridgeDTO
-from app.schemas.reading import ReadingCreate, ReadingRead
+from app.repositories.zone_repository import ZoneRepository
+from app.schemas.reading import ReadingRead
+from app.services.DTOS.telemetry_dto import BridgeDTO, SensorDTO, TelemetryAggregateDTO
+
+logger = logging.getLogger(__name__)
+
+# Yes/no flags of the node's power -> the technical notice each one opens.
+BOOLEAN_METRICS = {"battery_low": BATTERY_LOW, "power_source": ON_BATTERY_POWER}
 
 
 class TelemetryService:
@@ -22,6 +45,7 @@ class TelemetryService:
         sensor_repo: SensorRepository,
         sensor_type_repo: SensorTypeRepository,
         reading_repo: ReadingRepository,
+        clock: Callable[[], datetime] | None = None,
     ):
         self.building_repo = building_repo
         self.zone_repo = zone_repo
@@ -29,85 +53,110 @@ class TelemetryService:
         self.sensor_repo = sensor_repo
         self.sensor_type_repo = sensor_type_repo
         self.reading_repo = reading_repo
+        self.session: AsyncSession = reading_repo.session
+        self.message_repo = IngestMessageRepository(self.session)
+        self.metric_repo = SensorMetricRepository(self.session)
+        self.engine = AlertEngine(AlertRepository(self.session))
+        # Server time of arrival. Silence is measured with it, never with the bridge clock (a Raspberry Pi has
+        # no battery clock and can drift; review D4, 13-Nov-2026).
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
+
+    @classmethod
+    def for_session(cls, session: AsyncSession,
+                    clock: Callable[[], datetime] | None = None) -> "TelemetryService":
+        return cls(BuildingRepository(session), ZoneRepository(session), NodeRepository(session),
+                   SensorRepository(session), SensorTypeRepository(session), ReadingRepository(session),
+                   clock=clock)
 
     async def process_telemetry(self, telemetry: TelemetryAggregateDTO) -> dict:
-        """Process incoming telemetry data and save to database."""
-        try:
-            results = {
-                "message_uid": telemetry.message_uid,
-                "readings_created": 0,
-                "errors": [],
-            }
+        """Store the message and its readings, then group/alert. Does not commit (the caller does)."""
+        results = {"message_uid": telemetry.message_uid, "duplicate": False, "readings_created": 0,
+                   "alerts_opened": 0, "errors": []}
 
-            for bridge in telemetry.bridges:
-                try:
-                    readings_from_bridge = await self._process_bridge(bridge)
-                    results["readings_created"] += readings_from_bridge
-                except Exception as e:
-                    results["errors"].append(
-                        f"Error processing bridge {bridge.node_code}: {str(e)}"
-                    )
-
+        if await self.message_repo.get_by_uid(telemetry.message_uid):
+            results["duplicate"] = True
             return results
 
-        except Exception as e:
-            raise RuntimeError(f"Error processing telemetry: {str(e)}")
+        # Unknown node: store nothing, so the bridge's retry after the node is registered is not a "duplicate"
+        # and its data is not lost (review D5).
+        nodes = {}
+        for bridge in telemetry.bridges:
+            nodes[bridge.node_code] = await self.node_repo.get_by_code(bridge.node_code)
+        missing = [code for code, node in nodes.items() if node is None]
+        if missing:
+            results["errors"].append(f"Receiving node not found: {', '.join(missing)} (message not stored)")
+            return results
+        heard_at = self.clock()
 
-    async def _process_bridge(self, bridge: BridgeDTO) -> int:
-        """Process a single bridge and its sensors."""
-        readings_count = 0
+        message = await self.message_repo.add(IngestMessage(
+            message_uid=telemetry.message_uid, building_code=telemetry.building_code,
+            message_type=str(getattr(telemetry.message_type, "value", telemetry.message_type)),
+            schema_version=telemetry.schema_version, sequence_number=telemetry.sequence_number,
+            priority=str(getattr(telemetry.priority, "value", telemetry.priority)),
+            quality=str(getattr(telemetry.quality, "value", telemetry.quality)),
+            transport=telemetry.transport, generated_at=telemetry.generated_at, sent_at=telemetry.sent_at,
+            window_start=telemetry.window.start, window_end=telemetry.window.end,
+            sample_count_bridge=telemetry.window.sample_count,
+        ))
+
+        for bridge in telemetry.bridges:
+            try:
+                await self._process_bridge(bridge, nodes[bridge.node_code], heard_at, telemetry, message, results)
+            except Exception as e:  # one bad bridge must not lose the rest of the message
+                results["errors"].append(f"Error processing bridge {bridge.node_code}: {e}")
+        return results
+
+    async def _process_bridge(self, bridge: BridgeDTO, node, heard_at: datetime,
+                              telemetry: TelemetryAggregateDTO, message: IngestMessage, results: dict) -> None:
+        if node.last_signal_received_at is None or heard_at > node.last_signal_received_at:
+            node.last_signal_received_at = heard_at
+        await self.engine.on_node_heard(node.node_id, heard_at)
 
         for sensor_dto in bridge.sensors:
             try:
-                readings_from_sensor = await self._process_sensor(
-                    sensor_dto, bridge.node_code
-                )
-                readings_count += readings_from_sensor
+                async with self.session.begin_nested():
+                    await self._process_sensor(sensor_dto, node.node_id, telemetry, message, results)
             except Exception as e:
-                raise RuntimeError(
-                    f"Error processing sensor {sensor_dto.sensor_code}: {str(e)}"
-                )
+                results["errors"].append(f"Error processing sensor {sensor_dto.sensor_code}: {e}")
 
-        return readings_count
-
-    async def _process_sensor(self, sensor_dto: SensorDTO, receiving_node_code: str) -> int:
-        """Process a single sensor's data and create readings."""
-        import logging
-        logger = logging.getLogger(__name__)
-        readings_count = 0
-
-        sensor_code = sensor_dto.sensor_code
-        sensor = await self.sensor_repo.get_by_code(sensor_code)
-
+    async def _process_sensor(self, sensor_dto: SensorDTO, node_id: int, telemetry: TelemetryAggregateDTO,
+                              message: IngestMessage, results: dict) -> None:
+        sensor = await self.sensor_repo.get_by_code(sensor_dto.sensor_code)
         if not sensor:
-            raise RuntimeError(f"Sensor not found: {sensor_code}")
+            raise RuntimeError(f"Sensor not found: {sensor_dto.sensor_code}")
 
-        receiving_node = await self.node_repo.get_by_code(receiving_node_code)
-        if not receiving_node:
-            raise RuntimeError(f"Receiving node not found: {receiving_node_code}")
+        summary: dict[int, dict] = defaultdict(dict)
+        for value in parse_sensor_values(sensor_dto.data):
+            metric = await self.metric_repo.get_or_create(sensor.sensor_type_id, value.metric_code)
+            at = telemetry.generated_at if value.aggregation == "raw" else telemetry.window.start
+            reading = Reading(
+                message_id=message.message_id, sensor_id=sensor.sensor_id, receiving_node_id=node_id,
+                metric_id=metric.metric_id, aggregation=value.aggregation, measured_at=at,
+                measured_value=decimal.Decimal(str(value.value)), sample_count_sensor=sensor_dto.sample_count,
+            )
+            self.session.add(reading)
+            await self.session.flush()
+            results["readings_created"] += 1
 
-        measured_value = self._extract_primary_value(sensor_dto)
-        logger.info(f"🔍 Extracted value for {sensor_code}: {measured_value}")
+            if value.aggregation != "raw":
+                summary[metric.metric_id]["metric"] = metric
+                summary[metric.metric_id][value.aggregation] = value.value
+            elif value.metric_code in BOOLEAN_METRICS:
+                await self.engine.on_battery(node_id, sensor.sensor_id, metric, value.value, telemetry.generated_at,
+                                             code=BOOLEAN_METRICS[value.metric_code])
+            else:
+                alert = await self.engine.on_raw(sensor.sensor_id, node_id, metric, value.value,
+                                                 telemetry.generated_at, reading_id=reading.reading_id)
+                if alert is not None:
+                    if alert.reading_count == 1:
+                        results["alerts_opened"] += 1
+                    reading.alert_id = alert.alert_id
 
-        if measured_value is None:
-            logger.warning(f"⚠️  No primary value found in sensor data: {sensor_dto.data}")
-            return 0
-
-        reading_in = ReadingCreate(
-            sensor_id=sensor.sensor_id,
-            receiving_node_id=receiving_node.node_id,
-            measured_at=datetime.utcnow(),
-            measured_value=decimal.Decimal(str(measured_value)),
-            sequence_number=sensor_dto.sample_count,
-        )
-
-        created_reading = await self.reading_repo.create(reading_in)
-        logger.info(f"✅ Created reading: {created_reading}")
-
-        if created_reading:
-            readings_count += 1
-
-        return readings_count
+        for parts in summary.values():
+            await self.engine.on_summary(sensor.sensor_id, node_id, parts["metric"], avg=parts.get("avg"),
+                                         max_=parts.get("max"), min_=parts.get("min"),
+                                         window_end=telemetry.window.end)
+        await self.session.flush()
 
     async def get_telemetry_by_node(
         self, node_id: int, limit: int = 100, offset: int = 0
@@ -118,6 +167,7 @@ class TelemetryService:
             raise ValueError(f"Node {node_id} not found")
 
         zone = await self.zone_repo.get(node.zone_id)
+        floor = await self.zone_repo.get_floor(zone) if zone else None
         building = await self.building_repo.get(zone.building_id) if zone else None
 
         readings = await self.reading_repo.get_by_receiving_node(node_id, limit, offset)
@@ -177,7 +227,8 @@ class TelemetryService:
             "zone": {
                 "zone_id": zone.zone_id,
                 "code": zone.name,
-                "floor": zone.floor,
+                "floor": floor.level if floor else None,
+                "floor_name": floor.name if floor else None,
             }
             if zone
             else None,
@@ -196,55 +247,3 @@ class TelemetryService:
             "telemetry_readings": readings_with_details,
         }
 
-    @staticmethod
-    def _extract_primary_value(sensor_dto: SensorDTO) -> float | None:
-        """Extract the primary measured value from sensor data based on type."""
-        data = sensor_dto.data
-
-        # Priority field names to search
-        priority_keys = [
-            "temperature_avg_c", "average_avg_c",  # Temperature
-            "iaq_avg",  # Air quality
-            "rms_avg_g", "x_avg_g", "y_avg_g", "z_avg_g",  # Motion/Acceleration
-            "voltage_avg_v", "current_avg_ma", "power_avg_mw",  # Electrical
-            "value"  # Generic
-        ]
-
-        if isinstance(data, dict):
-            for key in priority_keys:
-                if key in data and data[key] is not None:
-                    return data[key]
-            # If no specific field found, return first numeric value
-            for v in data.values():
-                if isinstance(v, (int, float)):
-                    return v
-            return None
-
-        # Handle Pydantic model objects (typed sensor data)
-        for key in priority_keys:
-            value = getattr(data, key, None)
-            if value is not None:
-                return value
-
-        # Fallback: try to get any numeric attribute
-        for attr_name in dir(data):
-            if not attr_name.startswith('_'):
-                value = getattr(data, attr_name, None)
-                if isinstance(value, (int, float)) and value is not None:
-                    return value
-
-        return None
-
-        value = getattr(data, "iaq_avg", None)  # Air quality
-        if value is not None:
-            return value
-
-        value = getattr(data, "rms_avg_g", None)  # Motion
-        if value is not None:
-            return value
-
-        value = getattr(data, "voltage_avg_v", None)  # Electrical
-        if value is not None:
-            return value
-
-        return None

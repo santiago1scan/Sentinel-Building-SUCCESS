@@ -1,0 +1,55 @@
+.card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.card[role="button"] {
+  cursor: pointer;
+}
+
+.card[data-selected="true"] {
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 2px var(--accent-text);
+}
+
+.card[data-kind="basement"] {
+  border: 2px dashed var(--accent-text);
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.level {
+  margin: 0;
+  font-size: 17px;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--status-connected-bg);
+  color: var(--status-connected-text);
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.noName {
+  margin: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}

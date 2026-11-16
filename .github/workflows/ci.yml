@@ -62,19 +62,22 @@ jobs:
       - name: Instalar paho-mqtt
         run: pip install "paho-mqtt==2.1.0"
 
-      - name: Crear la base dynamic-security
+      - name: Crear la base dynamic-security y los certificados TLS
         working-directory: backend/mosquitto
-        run: ./init.sh
+        run: |
+          ./init.sh
+          ./gen-certs.sh
 
       - name: Levantar el broker con la configuración del repositorio
         working-directory: backend/mosquitto
         run: |
-          docker run -d --name sentinel-broker -p 1883:1883 \
+          docker run -d --name sentinel-broker -p 8883:8883 \
             -v "$PWD/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro" \
             -v "$PWD/data:/mosquitto/data" \
+            -v "$PWD/certs:/mosquitto/certs:ro" \
             eclipse-mosquitto:2.0
           for i in $(seq 1 30); do
-            if python -c "import socket; socket.create_connection(('localhost', 1883), 1)" 2>/dev/null; then
+            if python -c "import socket; socket.create_connection(('localhost', 8883), 1)" 2>/dev/null; then
               echo "Broker listo"; exit 0
             fi
             sleep 1
@@ -82,9 +85,22 @@ jobs:
           docker logs sentinel-broker
           exit 1
 
-      - name: Verificar autenticación, ACL y revocación
+      - name: Verificar TLS, autenticación, ACL y revocación
         working-directory: backend/mosquitto
-        run: python verify_dynsec.py --host localhost --port 1883
+        run: python verify_dynsec.py --host localhost --port 8883 --cafile certs/ca.crt
+
+      - name: Pruebas MQTT de autenticación de nodos (US17)
+        working-directory: backend/monolito-escucha
+        env:
+          INTEGRATION_MQTT_HOST: localhost
+          INTEGRATION_MQTT_PORT: "8883"
+          INTEGRATION_MQTT_CAFILE: ${{ github.workspace }}/backend/mosquitto/certs/ca.crt
+        run: |
+          pip install "pytest==8.3.5"
+          pytest tests/integration/test_mqtt_node_auth.py -v
+
+      - name: Confirmar que el broker registró los rechazos de autenticación
+        run: docker logs sentinel-broker 2>&1 | grep "not authorised"
 
       - name: Registros del broker (si algo falla)
         if: failure()

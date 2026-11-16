@@ -1,0 +1,154 @@
+/*
+ * Tokens de color del panel Sentinel.
+ *
+ * Reglas:
+ * - Los componentes usan solo estas variables, nunca colores literales.
+ * - Tema claro por defecto. Tema oscuro cuando el sistema lo pide o cuando
+ *   el usuario lo elige con data-theme="dark" en <html>.
+ * - Ningún estado se distingue solo por color: cada uno lleva ícono y etiqueta.
+ * - Los colores de marca son provisionales: reemplazar por los oficiales de la empresa.
+ *
+ * Contraste (WCAG): texto principal y secundario >= 7:1 (AAA);
+ * marcadores de estado >= 3:1; texto de píldoras de estado >= 7:1.
+ */
+
+/* ---------- Tema claro (por defecto) ---------- */
+:root {
+  color-scheme: light;
+
+  /* Marca */
+  --brand-primary: #1b2633;        /* barra lateral y encabezados de bloque */
+  --brand-accent: #1e40af;         /* botones primarios y elemento activo */
+  --accent-text: #1e40af;          /* enlaces y texto de énfasis sobre fondo claro */
+  --focus-ring: #1e40af;           /* contorno de foco del teclado */
+
+  /* Superficies y texto */
+  --bg: #f4f6f9;                   /* fondo de la página */
+  --surface: #ffffff;              /* tarjetas */
+  --surface-2: #eef2f6;            /* filas alternas, cabeceras de tabla */
+  --line: #d5dce6;                 /* separadores decorativos */
+  --line-strong: #748196;          /* bordes de controles (3:1 sobre surface) */
+  --text: #0f172a;                 /* texto principal */
+  --text-muted: #425166;           /* texto secundario */
+
+  /* Texto e ítems sobre --brand-primary */
+  --on-primary: #ffffff;
+  --on-primary-soft: #d6dfeb;
+  --on-primary-muted: #b4c0cf;
+  --on-primary-line: #ffffff2e;
+
+  --shadow-card: 0 4px 16px #18345c0b;
+
+  /* Estados de conexión: marcador, texto y fondo de la píldora */
+  --status-connected: #15803d;     /* conectado */
+  --status-connected-text: #14532d;
+  --status-connected-bg: #dcfce7;
+
+  --status-off: #64748b;           /* apagado: neutro, sin tono de alerta */
+  --status-off-text: #1e293b;
+  --status-off-bg: #e2e8f0;
+
+  --status-alert: #991b1b;         /* alerta: el estado más severo */
+  --status-alert-text: #7f1d1d;
+  --status-alert-bg: #fee2e2;
+
+  --status-warning: #a16207;       /* advertencia: requiere revisión, no emergencia */
+  --status-warning-text: #713f12;
+  --status-warning-bg: #fef3c7;
+
+  --status-delayed: #7c3aed;       /* conexión demorada: violeta, distinto de rojo y verde */
+  --status-delayed-text: #4c1d95;
+  --status-delayed-bg: #ede9fe;
+}
+
+/* ---------- Tema oscuro según el sistema (si el usuario no eligió otro) ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --brand-primary: #05080c;
+    --brand-accent: #1e40af;
+    --accent-text: #93c5fd;
+    --focus-ring: #93c5fd;
+
+    --bg: #0c1117;
+    --surface: #131b25;
+    --surface-2: #1a2431;
+    --line: #2b3848;
+    --line-strong: #6f8198;
+    --text: #e8eef5;
+    --text-muted: #a7b4c4;
+
+    --on-primary: #ffffff;
+    --on-primary-soft: #c9d3df;
+    --on-primary-muted: #a7b4c4;
+    --on-primary-line: #ffffff24;
+
+    --shadow-card: 0 4px 16px #00000066;
+
+    --status-connected: #4ade80;
+    --status-connected-text: #86efac;
+    --status-connected-bg: #0f2e1d;
+
+    --status-off: #94a3b8;
+    --status-off-text: #cbd5e1;
+    --status-off-bg: #1f2a37;
+
+    --status-alert: #f87171;
+    --status-alert-text: #fecaca;
+    --status-alert-bg: #3b1212;
+
+    --status-warning: #fbbf24;
+    --status-warning-text: #fde68a;
+    --status-warning-bg: #3a2a05;
+
+    --status-delayed: #c4b5fd;
+    --status-delayed-text: #ddd6fe;
+    --status-delayed-bg: #2e1f4f;
+  }
+}
+
+/* ---------- Tema oscuro elegido por el usuario ---------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --brand-primary: #05080c;
+  --brand-accent: #1e40af;
+  --accent-text: #93c5fd;
+  --focus-ring: #93c5fd;
+
+  --bg: #0c1117;
+  --surface: #131b25;
+  --surface-2: #1a2431;
+  --line: #2b3848;
+  --line-strong: #6f8198;
+  --text: #e8eef5;
+  --text-muted: #a7b4c4;
+
+  --on-primary: #ffffff;
+  --on-primary-soft: #c9d3df;
+  --on-primary-muted: #a7b4c4;
+  --on-primary-line: #ffffff24;
+
+  --shadow-card: 0 4px 16px #00000066;
+
+  --status-connected: #4ade80;
+  --status-connected-text: #86efac;
+  --status-connected-bg: #0f2e1d;
+
+  --status-off: #94a3b8;
+  --status-off-text: #cbd5e1;
+  --status-off-bg: #1f2a37;
+
+  --status-alert: #f87171;
+  --status-alert-text: #fecaca;
+  --status-alert-bg: #3b1212;
+
+  --status-warning: #fbbf24;
+  --status-warning-text: #fde68a;
+  --status-warning-bg: #3a2a05;
+
+  --status-delayed: #c4b5fd;
+  --status-delayed-text: #ddd6fe;
+  --status-delayed-bg: #2e1f4f;
+}
