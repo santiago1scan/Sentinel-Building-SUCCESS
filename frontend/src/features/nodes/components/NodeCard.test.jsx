@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { vi } from "vitest";
 import NodeCard from "./NodeCard";
 
 const node = { node_id: 1, code: "N-01", name: "Sensor piso 2", zone_id: 4, ip_address: "10.0.0.5" };
@@ -17,20 +18,38 @@ describe("NodeCard", () => {
     expect(container.querySelector("article").getAttribute("data-status")).toBe("connected");
   });
 
-  it("indica las alertas abiertas en singular y plural", () => {
-    const { rerender } = render(
-      <NodeCard node={node} status="warning" openAlerts={[{ alert_type: "technical" }]} />,
-    );
-    expect(screen.getByText(/1 alerta abierta/)).toBeTruthy();
-
-    rerender(
+  it("lista cada alerta con su tipo y permite marcarla como atendida", () => {
+    const onHandle = vi.fn();
+    render(
       <NodeCard
         node={node}
         status="alert"
-        openAlerts={[{ alert_type: "out_of_range" }, { alert_type: "technical" }]}
+        onHandle={onHandle}
+        openAlerts={[
+          { alert_id: 7, alert_type: "out_of_range", alert_code: "OUT_OF_RANGE_ABOVE", handled_by_user_id: null },
+          { alert_id: 8, alert_type: "technical", alert_code: "NODE_SILENT", handled_by_user_id: 5 },
+        ]}
       />,
     );
-    expect(screen.getByText(/2 alertas abiertas/)).toBeTruthy();
+
+    expect(screen.getByText("Fuera de rango")).toBeTruthy();
+    expect(screen.getByText("Aviso técnico")).toBeTruthy();
+    expect(screen.getByText("✓ Atendida")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Marcar atendida" }));
+    expect(onHandle).toHaveBeenCalledWith(7);
+  });
+
+  it("muestra 'Guardando…' mientras se marca la alerta", () => {
+    render(
+      <NodeCard
+        node={node}
+        status="warning"
+        openAlerts={[{ alert_id: 7, alert_type: "technical", alert_code: "X", handled_by_user_id: null }]}
+        handling={{ 7: true }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Guardando…" }).disabled).toBe(true);
   });
 
   it("sin IP muestra 'Sin IP'", () => {

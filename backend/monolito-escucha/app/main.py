@@ -9,12 +9,15 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import health, telemetry
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.routes import alerts, health, telemetry
 from app.core.config import settings
 from app.analytics.silence_monitor import run_silence_monitor
 from app.core.database import async_session_maker, close_db, init_db
 from app.core.exceptions import AppException
 from app.core.mqtt_handler import initialize_mqtt_handler, create_async_message_handler
+from app.services.alert_events import register_alert_event_listeners
 from app.services.mqtt_consumer_service import MQTTConsumerService
 from app.schemas.common import (
     ErrorDetail,
@@ -202,8 +205,19 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 # Include routers (only MQTT & Telemetry)
+register_alert_event_listeners()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
+    # Sin credenciales: la autenticación va en el header Bearer, no en cookies.
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(health.router)
 app.include_router(telemetry.router)
+app.include_router(alerts.router)
 
 
 @app.get("/")

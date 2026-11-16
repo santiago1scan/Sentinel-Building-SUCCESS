@@ -102,3 +102,12 @@
   font-weight: bold;
   cursor: pointer;
 }
+
+.notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  font-weight: bold;
+}

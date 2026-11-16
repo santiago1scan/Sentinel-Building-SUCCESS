@@ -56,6 +56,9 @@ services:
       MQTT_CA_FILE: /certs/ca.crt
       MQTT_USERNAME: ${MQTT_CONSUMER_USERNAME:-escucha-consumer}
       MQTT_PASSWORD: ${MQTT_CONSUMER_PASSWORD:?Define MQTT_CONSUMER_PASSWORD en el .env de la raíz}
+      # Stream de alertas (/alerts/stream) y marcado como atendida: ID token de Firebase.
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_ADMIN_EMAILS: ${FIREBASE_ADMIN_EMAILS:-}
     ports:
       - "8089:8089"
     volumes:

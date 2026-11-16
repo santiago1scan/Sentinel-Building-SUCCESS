@@ -6,6 +6,12 @@ vi.mock("./httpClient", () => ({
 
 import { httpClient } from "./httpClient";
 import { alertsService } from "./alertsService";
+import { subscribeToStream } from "./eventStream";
+
+vi.mock("./eventStream", () => ({
+  subscribeToStream: vi.fn(() => () => {}),
+  ESCUCHA_URL: "http://escucha",
+}));
 
 describe("alertsService", () => {
   beforeEach(() => {
@@ -47,13 +53,35 @@ describe("alertsService", () => {
     expect(httpClient.get).toHaveBeenCalledWith("/alerts/event-uuid/abc-123");
   });
 
-  it("handle hace POST sin body, porque el backend toma el usuario del token", () => {
-    alertsService.handle(5);
-    expect(httpClient.post).toHaveBeenCalledWith("/alerts/5/handle");
-  });
-
   it("update hace PATCH con el payload", () => {
     alertsService.update(5, { status: "closed" });
     expect(httpClient.patch).toHaveBeenCalledWith("/alerts/5", { status: "closed" });
+  });
+});
+
+describe("alertsService.subscribeToAlerts", () => {
+  it("se suscribe a /alerts/stream en escucha y despacha el estado de cada alerta", () => {
+    const handlers = { onAlert: vi.fn(), onReady: vi.fn(), onError: vi.fn() };
+
+    alertsService.subscribeToAlerts(handlers);
+
+    const [path, options] = subscribeToStream.mock.calls.at(-1);
+    expect(path).toBe("/alerts/stream");
+    expect(options.baseUrl).toBe("http://escucha");
+
+    options.onEvent("alert", { alert_id: 1, visible: false });
+    expect(handlers.onAlert).toHaveBeenCalledWith({ alert_id: 1, visible: false });
+
+    options.onEvent("alerts_ready", {});
+    expect(handlers.onReady).toHaveBeenCalled();
+  });
+
+  it("handle marca la alerta en escucha (POST, sin body)", async () => {
+    const { httpClient } = await import("./httpClient");
+    httpClient.post.mockResolvedValueOnce({ alert_id: 5 });
+
+    await alertsService.handle(5);
+
+    expect(httpClient.post).toHaveBeenCalledWith("/alerts/5/handle", undefined, { baseUrl: "http://escucha" });
   });
 });

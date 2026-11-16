@@ -1,4 +1,5 @@
 import { httpClient } from "./httpClient";
+import { ESCUCHA_URL, subscribeToStream } from "./eventStream";
 
 /** Servicio de alertas (/alerts). Lo usan dashboard y eventos. */
 export const alertsService = {
@@ -30,12 +31,32 @@ export const alertsService = {
     return httpClient.get(`/alerts/handled-by/${userId}`);
   },
 
-  /** El backend toma el usuario que atiende desde el token; no requiere body. */
+  /**
+   * Marca la alerta como atendida en monolito-escucha, para que el stream lo vea.
+   * No borra la alerta. Devuelve el estado completo (mismo formato que el evento `alert`).
+   */
   handle(alertId) {
-    return httpClient.post(`/alerts/${alertId}/handle`);
+    return httpClient.post(`/alerts/${alertId}/handle`, undefined, { baseUrl: ESCUCHA_URL });
   },
 
   update(alertId, payload) {
     return httpClient.patch(`/alerts/${alertId}`, payload);
+  },
+
+  /**
+   * Stream en vivo desde monolito-escucha (con token de Firebase).
+   * Eventos: `alert` (estado completo; `visible: false` = terminó y fue atendida, la fila sigue en la
+   * base de datos), y `alerts_ready` (se envió todo el estado actual al conectarse).
+   * Devuelve la función para cerrar la conexión.
+   */
+  subscribeToAlerts({ onAlert, onReady, onError }) {
+    return subscribeToStream("/alerts/stream", {
+      baseUrl: ESCUCHA_URL,
+      onEvent: (eventName, data) => {
+        if (eventName === "alert") onAlert(data);
+        else if (eventName === "alerts_ready") onReady?.();
+      },
+      onError,
+    });
   },
 };

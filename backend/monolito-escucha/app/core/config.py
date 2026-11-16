@@ -29,5 +29,11 @@ class Settings(BaseSettings):
     silence_threshold_minutes: int = 35
     silence_check_seconds: int = 300
 
+    # Stream de alertas para el panel: el ID token de Firebase se valida contra este proyecto.
+    # Sin FIREBASE_PROJECT_ID el stream responde 503 (cerrado por omisión).
+    firebase_project_id: str | None = None
+    firebase_admin_emails: str = ""
+    cors_origins: str = "*"
+
 
 settings = Settings()

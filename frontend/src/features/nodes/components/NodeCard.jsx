@@ -16,7 +16,12 @@ export function NodeStatusBadge({ status }) {
  * Tarjeta de un nodo sensor. Su color de fondo y de borde sale del estado,
  * para identificarlo de un vistazo.
  */
-function NodeCard({ node, status, openAlerts = [] }) {
+const TYPE_LABEL = {
+  out_of_range: "Fuera de rango",
+  technical: "Aviso técnico",
+};
+
+function NodeCard({ node, status, openAlerts = [], handling = {}, onHandle = () => {} }) {
   return (
     <article className={styles.card} data-status={status}>
       <header className={styles.header}>
@@ -31,7 +36,7 @@ function NodeCard({ node, status, openAlerts = [] }) {
         </div>
         <div>
           <dt>Zona</dt>
-          <dd>#{node.zone_id}</dd>
+          <dd>{node.zone_id == null ? "—" : `#${node.zone_id}`}</dd>
         </div>
         <div>
           <dt>IP</dt>
@@ -40,10 +45,33 @@ function NodeCard({ node, status, openAlerts = [] }) {
       </dl>
 
       {openAlerts.length > 0 && (
-        <p className={styles.alerts}>
-          <span aria-hidden="true">⚠</span> {openAlerts.length} alerta
-          {openAlerts.length === 1 ? "" : "s"} abierta{openAlerts.length === 1 ? "" : "s"}
-        </p>
+        <ul className={styles.alertList} aria-label="Alertas del nodo">
+          {openAlerts.map((alert) => {
+            const attended = Boolean(alert.handled_by_user_id);
+            const busy = Boolean(handling[alert.alert_id]);
+            return (
+              <li key={alert.alert_id} className={styles.alertItem}>
+                <span>
+                  <span aria-hidden="true">⚠</span>{" "}
+                  {TYPE_LABEL[alert.alert_type] ?? alert.alert_type}
+                  <span className={styles.code}> · {alert.alert_code}</span>
+                </span>
+                {attended ? (
+                  <span className={styles.attended}>✓ Atendida</span>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.handleButton}
+                    disabled={busy}
+                    onClick={() => onHandle(alert.alert_id)}
+                  >
+                    {busy ? "Guardando…" : "Marcar atendida"}
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </article>
   );

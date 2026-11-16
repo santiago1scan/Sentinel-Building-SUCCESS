@@ -1,5 +1,8 @@
 import { BASE_URL, runRequestInterceptors } from "./httpClient";
 
+/** Servicio que emite eventos en vivo (escucha: alertas). Vite lo toma de VITE_ESCUCHA_URL. */
+export const ESCUCHA_URL = import.meta.env.VITE_ESCUCHA_URL ?? "http://localhost:8090";
+
 /**
  * Suscribe a un endpoint Server-Sent Events (text/event-stream).
  *
@@ -11,9 +14,10 @@ import { BASE_URL, runRequestInterceptors } from "./httpClient";
  * @param {object} handlers
  * @param {(eventName: string, data: any) => void} handlers.onEvent
  * @param {(error: Error) => void} [handlers.onError]
+ * @param {string} [handlers.baseUrl] Servicio que emite el stream; por omisión, consulta
  * @returns {() => void} Función para cerrar la conexión
  */
-export function subscribeToStream(path, { onEvent, onError } = {}) {
+export function subscribeToStream(path, { onEvent, onError, baseUrl = BASE_URL } = {}) {
   const controller = new AbortController();
 
   (async () => {
@@ -25,7 +29,7 @@ export function subscribeToStream(path, { onEvent, onError } = {}) {
         headers: { Accept: "text/event-stream" },
       });
 
-      const response = await fetch(new URL(path, BASE_URL), {
+      const response = await fetch(new URL(path, baseUrl), {
         headers: context.headers,
         signal: controller.signal,
       });

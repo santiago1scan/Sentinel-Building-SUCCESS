@@ -8,3 +8,5 @@ alembic==1.12.1
 python-dotenv==1.0.0
 httpx==0.25.1
 paho-mqtt==2.1.0
+cryptography==50.0.2
+PyJWT==2.15.1

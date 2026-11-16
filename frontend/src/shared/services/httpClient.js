@@ -48,8 +48,8 @@ export async function runRequestInterceptors(context) {
 
 /* ------------------------------------------------------------------ */
 
-function buildUrl(path, params) {
-  const url = new URL(path, BASE_URL);
+function buildUrl(path, params, base = BASE_URL) {
+  const url = new URL(path, base);
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -73,7 +73,7 @@ function buildUrl(path, params) {
  * @param {object} [options.body]     Se envía como JSON
  * @param {AbortSignal} [options.signal]
  */
-export async function request(path, { method = "GET", params, body, signal } = {}) {
+export async function request(path, { method = "GET", params, body, signal, baseUrl = BASE_URL } = {}) {
   const baseHeaders = { Accept: "application/json" };
   if (body !== undefined) {
     baseHeaders["Content-Type"] = "application/json";
@@ -85,7 +85,7 @@ export async function request(path, { method = "GET", params, body, signal } = {
     headers: baseHeaders,
   });
 
-  const response = await fetch(buildUrl(path, params), {
+  const response = await fetch(buildUrl(path, params, baseUrl), {
     method: context.method,
     headers: context.headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
