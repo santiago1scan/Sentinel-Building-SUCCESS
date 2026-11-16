@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sentinel · Inicio de sesión</title>
+  <style>
+    :root { color-scheme: light dark; --fg: #1d1f23; --bg: #f5f6f8; --card: #fff; --muted: #6b7280; --accent: #2563eb; --err: #b91c1c; --ok: #15803d; }
+    @media (prefers-color-scheme: dark) { :root { --fg: #e5e7eb; --bg: #111418; --card: #1b1f25; --muted: #9ca3af; --accent: #60a5fa; --err: #f87171; --ok: #4ade80; } }
+    body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+    main { max-width: 420px; margin: 10vh auto; padding: 0 16px; }
+    .card { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    p.sub { margin: 0 0 20px; color: var(--muted); font-size: .9rem; }
+    button { width: 100%; padding: 10px 14px; border: 0; border-radius: 8px; font-size: 1rem; cursor: pointer; background: var(--accent); color: #fff; }
+    button.secundario { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-top: 12px; }
+    button:disabled { opacity: .6; cursor: default; }
+    #estado { margin-top: 16px; font-size: .95rem; min-height: 1.2em; }
+    .err { color: var(--err); } .ok { color: var(--ok); }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 16px 0 0; font-size: .92rem; }
+    dt { color: var(--muted); } dd { margin: 0; word-break: break-all; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Sentinel · Panel</h1>
+    <p class="sub">Inicia sesión con tu cuenta de Firebase.</p>
+
+    <div id="sin-sesion">
+      <button id="entrar" type="button">Entrar con Google</button>
+    </div>
+
+    <div id="con-sesion" hidden>
+      <button id="salir" class="secundario" type="button">Cerrar sesión</button>
+    </div>
+
+    <dl id="datos" hidden>
+      <dt>Correo</dt><dd id="correo">—</dd>
+      <dt>Verificado</dt><dd id="verificado">—</dd>
+      <dt>Acceso</dt><dd id="acceso">—</dd>
+    </dl>
+
+    <div id="estado" role="status"></div>
+  </div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const $ = (id) => document.getElementById(id);
+  const estado = $("estado");
+
+  function mostrar(texto, clase = "") {
+    estado.textContent = texto;        // textContent: nunca interpreta HTML del servidor o de Firebase
+    estado.className = clase;
+  }
+
+  function pintarSesion(user, datosBackend) {
+    $("sin-sesion").hidden = !!user;
+    $("con-sesion").hidden = !user;
+    $("datos").hidden = !user;
+    if (!user) return;
+    $("correo").textContent = datosBackend?.email ?? user.email ?? "—";
+    $("verificado").textContent = datosBackend ? (datosBackend.email_verificado ? "sí" : "no") : "—";
+    $("acceso").textContent = datosBackend ? "autorizado" : "sin acceso";
+  }
+
+  async function cargarConfig() {
+    const r = await fetch("/auth/config");
+    if (!r.ok) throw new Error("No se pudo leer la configuración de Firebase.");
+    return r.json();
+  }
+
+  // Verifica el ID token en el backend: el mismo criterio que el resto de rutas protegidas.
+  async function verificarEnBackend(user) {
+    const token = await user.getIdToken();
+    const r = await fetch("/auth/me", { headers: { Authorization: "Bearer " + token } });
+    if (r.status === 403) throw new Error("Tu cuenta no está autorizada para este panel.");
+    if (r.status === 503) throw new Error("La autenticación no está configurada en el servidor.");
+    if (!r.ok) throw new Error("El servidor rechazó la sesión (" + r.status + ").");
+    return r.json();
+  }
+
+  async function iniciar() {
+    let cfg;
+    try {
+      cfg = await cargarConfig();
+    } catch (e) {
+      mostrar(e.message, "err");
+      $("entrar").disabled = true;
+      return;
+    }
+    if (!cfg.configurado) {
+      mostrar("Falta configurar Firebase en el servidor (FIREBASE_PROJECT_ID y FIREBASE_API_KEY).", "err");
+      $("entrar").disabled = true;
+      return;
+    }
+
+    const auth = getAuth(initializeApp(cfg));
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) { pintarSesion(null); mostrar(""); return; }
+      try {
+        const datos = await verificarEnBackend(user);
+        pintarSesion(user, datos);
+        mostrar("Sesión iniciada. Abriendo el panel…", "ok");
+        window.location.href = cfg.panelUrl;
+      } catch (e) {
+        pintarSesion(user, null);
+        mostrar(e.message, "err");
+      }
+    });
+
+    $("entrar").onclick = async () => {
+      $("entrar").disabled = true;
+      mostrar("Abriendo ventana de inicio de sesión…");
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      } catch (e) {
+        if (e.code !== "auth/popup-closed-by-user") mostrar("No se pudo iniciar sesión: " + e.message, "err");
+        else mostrar("");
+      } finally {
+        $("entrar").disabled = false;
+      }
+    };
+
+    $("salir").onclick = () => signOut(auth);
+  }
+
+  iniciar();
+</script>
+</body>
+</html>

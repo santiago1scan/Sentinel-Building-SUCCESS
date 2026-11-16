@@ -66,7 +66,7 @@ def test_rest_reporta_error_http():
     finally:
         s.cerrar()
     assert ok is False
-    assert detalle.startswith("HTTP 500")
+    assert "500" in detalle  # urllib lanza HTTPError: detalle = str(exc), como el original
 
 
 def test_rest_reporta_servidor_caido():

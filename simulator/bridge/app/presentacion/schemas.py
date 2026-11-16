@@ -1,56 +1,35 @@
-"""Contratos de entrada y salida de la API.
+"""Entrada y salida de la API.
 
-Los modelos reflejan el payload que envía el simulador y el contrato
-estandarizado que recibe la caja negra (telemetry_standard.py).
+La entrada se pasa al servicio sin validar campo por campo: el bridge original
+decide qué rechazar (y cuándo) según el flujo que ejecuta. Aquí solo se valida
+la forma del cuerpo, igual que bridge_service.py.
 """
 
-from typing import Any, Literal
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
-
-Prioridad = Literal["normal", "high", "critical"]
-TipoSensor = Literal["accelerometer", "thermal_array", "gas_environmental", "power_monitor"]
+from pydantic import BaseModel
 
 
-class LecturaIn(BaseModel):
-    # extra="allow": el bridge conserva el evento original completo en SQLite.
-    model_config = ConfigDict(extra="allow")
-
-    event_id: str = Field(min_length=1)
-    node_id: str = Field(min_length=1)
-    sensor_id: str = Field(min_length=1)
-    sensor_type: TipoSensor
-    sensor_model: str
-    generated_at: str
-    priority: Prioridad
-    payload: dict[str, Any]
-
-
-def extraer_lecturas(body: Any) -> list[LecturaIn]:
-    """Acepta una lista directa o {"readings": [...]}. Lanza ValueError si no es válido."""
+def extraer_lecturas(body: Any) -> list[dict[str, Any]]:
+    """Acepta una lista directa o {"readings": [...]}. Lanza ValueError si no es lista."""
     bruto = body["readings"] if isinstance(body, dict) else body
     if not isinstance(bruto, list):
         raise ValueError("readings debe ser una lista")
-    return [LecturaIn.model_validate(item) for item in bruto]
-
-
-class AgregadoOut(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    schema_version: str
-    message_uid: str
-    message_type: Literal["telemetry_aggregate"]
-    building_code: str
-    generated_at: str
-    sequence_number: int
-    priority: Prioridad
-    bridges: list[dict[str, Any]]
+    return bruto
 
 
 class AlmacenamientoOut(BaseModel):
     raw_readings: int
     pending: int
     sent: int
+
+
+class HealthOut(BaseModel):
+    status: str
+    component: str
+    nodes: list[str]
+    mqtt_connected: dict[str, bool]
+    storage: AlmacenamientoOut
 
 
 class IngestOut(BaseModel):

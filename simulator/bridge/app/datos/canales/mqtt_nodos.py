@@ -6,6 +6,8 @@ from typing import Any
 
 import paho.mqtt.client as mqtt
 
+MQTT_OK = mqtt.MQTT_ERR_SUCCESS
+
 
 def topico_nodo(codigo_edificio: str, codigo_nodo: str) -> str:
     return f"sentinel/v1/{codigo_edificio}/{codigo_nodo}/telemetry/aggregate"
@@ -32,7 +34,7 @@ class EnlaceMqttNodo:
         return self._client.is_connected()
 
     def publicar(self, payload: dict[str, Any]) -> int:
-        """Devuelve el código rc de paho (mqtt.MQTT_ERR_SUCCESS si se aceptó)."""
+        """Devuelve el código rc de paho (MQTT_OK si se aceptó)."""
         resultado = self._client.publish(
             self.topico, json.dumps(payload, ensure_ascii=False), qos=1, retain=False)
         return resultado.rc

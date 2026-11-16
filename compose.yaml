@@ -111,8 +111,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8089
 
   bridge:
+    # Monolito del bridge (FastAPI, 3 capas). Equivale a bridge_service.py con la misma lógica.
     build:
-      context: ./simulator
+      context: ./simulator/bridge
       dockerfile: Dockerfile
     container_name: sentinel-bridge
     restart: unless-stopped
@@ -126,18 +127,29 @@ services:
     environment:
       # Tokens por nodo: "NODE-FLOOR-1=token1,NODE-FLOOR-2=token2" (definir en .env de la raíz)
       SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
+      SENTINEL_DATA_DIR: /app/data_bridge
+      SENTINEL_BUILDING_CODE: SB-001
+      SENTINEL_INTERVAL: "30"
+      SENTINEL_API_URL: http://monolito-escucha:8089
+      SENTINEL_API_PATH: /telemetry/aggregate
+      # Broker dynamic-security: solo TLS en 8883. Cada nodo se autentica con su token.
+      SENTINEL_MQTT_HOST: mosquitto
+      SENTINEL_MQTT_PORT: "8883"
+      SENTINEL_MQTT_TLS: "true"
+      SENTINEL_MQTT_CA_FILE: /certs/ca.crt
+      # Login de Firebase de la página /login (valores públicos del proyecto; ver .env.example).
+      SENTINEL_FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
+      SENTINEL_FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+      SENTINEL_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      SENTINEL_FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
+      SENTINEL_FIREBASE_MESSAGING_SENDER_ID: ${FIREBASE_MESSAGING_SENDER_ID:-}
+      SENTINEL_FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-}
+      SENTINEL_FIREBASE_ADMIN_EMAILS: ${FIREBASE_ADMIN_EMAILS:-}
     depends_on:
       monolito-escucha:
         condition: service_started
       mosquitto:
         condition: service_healthy
-    command: >
-      python bridge/bridge_service.py
-      --listen-host 0.0.0.0 --listen-port 8766 --data-dir /app/data_bridge
-      --building-code SB-001 --interval 30
-      --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate
-      --mqtt-host mosquitto --mqtt-port 8883
-      --mqtt-tls --mqtt-ca-file /certs/ca.crt
 
   mqtt-sensor-simulator:
     build:

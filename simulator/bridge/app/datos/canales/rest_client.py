@@ -30,8 +30,5 @@ class RestClient:
                 if 200 <= response.status < 300:
                     return True, body
                 return False, f"HTTP {response.status}: {body}"
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            return False, f"HTTP {exc.code}: {body}"
-        except OSError as exc:  # URLError y timeouts también son OSError
+        except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
             return False, str(exc)
