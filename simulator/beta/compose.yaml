@@ -1,0 +1,25 @@
+services:
+  sentinel-beta:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel-building-beta
+    restart: unless-stopped
+    ports:
+      - "8782:8782"
+      - "8790:8790"
+    volumes:
+      - ./data:/app/data
+    environment:
+      SENTINEL_BACKEND_URL: ${SENTINEL_BACKEND_URL:-}
+      SENTINEL_NODE_TOKEN_FLOOR_1: ${SENTINEL_NODE_TOKEN_FLOOR_1:-}
+      SENTINEL_NODE_TOKEN_FLOOR_2: ${SENTINEL_NODE_TOKEN_FLOOR_2:-}
+    command:
+      - python
+      - -u
+      - start_beta.py
+      - --no-browser
+      - --dashboard-host
+      - 0.0.0.0
+      - --control-host
+      - 0.0.0.0

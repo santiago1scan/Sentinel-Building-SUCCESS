@@ -53,3 +53,10 @@ data through REST. Pending data is kept locally for MQTT recovery. LoRa is
 used for the emergency summary when the network is unavailable.
 
 Do not commit passwords, tokens, virtual environments or generated databases.
+
+## Beta resiliente
+
+La versión Beta autocontenida está en [`beta/`](beta/README.md). Incluye dos
+bridges independientes, almacenamiento SQLite, cola de sincronización, respaldo
+LoRa, contrato JSON 2.0, dashboard React y pruebas automatizadas. Puede
+ejecutarse sin reemplazar los componentes anteriores de esta carpeta.
