@@ -25,8 +25,17 @@ GET    /buildings/{building_id}
 PATCH  /buildings/{building_id}
 DELETE /buildings/{building_id}
 GET    /buildings/{building_id}/zones
+GET    /buildings/{building_id}/floors
 
-# Zones
+# Floors  (edificio -> piso -> zona -> nodo; level: -1 sótano, 0 planta baja, 1 primero...)
+POST   /floors                       # { building_id, level, name? }  nombre por omisión: "Planta baja", "Sótano N", "Piso N"
+GET    /floors
+GET    /floors/building/{building_id}
+GET    /floors/{floor_id}
+PATCH  /floors/{floor_id}            # { level?, name? }  no cambia de edificio
+DELETE /floors/{floor_id}            # 409 si todavía tiene zonas
+
+# Zones  (floor_id opcional; el piso debe ser del mismo edificio que la zona)
 POST   /zones
 GET    /zones
 GET    /zones/{zone_id}

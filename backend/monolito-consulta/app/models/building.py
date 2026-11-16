@@ -22,3 +22,4 @@ class Building(Base):
     address: Mapped[str | None] = mapped_column(String(250))
 
     zones: Mapped[list["Zone"]] = relationship("Zone", back_populates="building")
+    floors: Mapped[list["Floor"]] = relationship("Floor", back_populates="building")

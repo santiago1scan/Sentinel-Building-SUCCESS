@@ -17,6 +17,7 @@ from app.api.routes import (
     app_users,
     buildings,
     connectivity_logs,
+    floors,
     health,
     nodes,
     readings,
@@ -194,6 +195,7 @@ app.include_router(health.router)
 _protected = [Depends(require_user)]
 app.include_router(buildings.router, dependencies=_protected)
 app.include_router(zones.router, dependencies=_protected)
+app.include_router(floors.router, dependencies=_protected)
 app.include_router(nodes.router, dependencies=_protected)
 # registrations mezcla rutas del bridge (abiertas, con X-Poll-Secret) y del administrador:
 # la protección va por ruta, dentro del router.

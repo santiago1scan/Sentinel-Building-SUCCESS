@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from sqlalchemy import case, or_, select
 
 from app.models.alert import Alert
+from app.models.floor import Floor
 from app.models.node import Node
 from app.models.sensor import Sensor
 from app.models.sensor_metric import SensorMetric
@@ -47,10 +48,11 @@ class AlertRepository(BaseRepository[Alert, Alert, Alert]):
         Order: emergencies (out_of_range) before technical notices, then the biggest deviation, then the newest.
         """
         stmt = (
-            select(Alert, Zone.building_id, Zone.floor, Zone.name, Node.code, Sensor.code, SensorMetric.metric_code,
+            select(Alert, Zone.building_id, Floor.level, Floor.name, Zone.name, Node.code, Sensor.code, SensorMetric.metric_code,
                    SensorMetric.unit, SensorMetric.normal_minimum, SensorMetric.normal_maximum)
             .outerjoin(Node, Node.node_id == Alert.node_id)
             .outerjoin(Zone, Zone.zone_id == Node.zone_id)
+            .outerjoin(Floor, Floor.floor_id == Zone.floor_id)
             .outerjoin(Sensor, Sensor.sensor_id == Alert.sensor_id)
             .outerjoin(SensorMetric, SensorMetric.metric_id == Alert.metric_id)
             .where(or_(Alert.ended_at.is_(None), Alert.handled_by_user_id.is_(None)))
@@ -60,12 +62,12 @@ class AlertRepository(BaseRepository[Alert, Alert, Alert]):
         rows = (await self.session.execute(stmt)).all()
         per_building = Counter(row[1] for row in rows)
         return [
-            {"alert": alert, "floor": floor, "zone_name": zone_name, "node_code": node_code,
+            {"alert": alert, "floor": floor, "floor_name": floor_name, "zone_name": zone_name, "node_code": node_code,
              "sensor_code": sensor_code, "metric_code": metric_code, "unit": unit,
              "normal_minimum": None if low is None else float(low),
              "normal_maximum": None if high is None else float(high),
              "other_open_count": per_building[building_id] - 1}
-            for alert, building_id, floor, zone_name, node_code, sensor_code, metric_code, unit, low, high in rows
+            for alert, building_id, floor, floor_name, zone_name, node_code, sensor_code, metric_code, unit, low, high in rows
         ]
 
     async def mark_handled(self, alert: Alert, user_id: int) -> Alert:

@@ -3,9 +3,11 @@ from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, Query
 
-from app.api.deps import get_building_service
+from app.api.deps import get_building_service, get_floor_service
 from app.schemas.building import BuildingCreate, BuildingRead, BuildingUpdate
+from app.schemas.floor import FloorRead
 from app.services.building_service import BuildingService
+from app.services.floor_service import FloorService
 
 router = APIRouter(prefix="/buildings", tags=["buildings"])
 
@@ -58,3 +60,11 @@ async def get_building_zones(
     service: BuildingService = Depends(get_building_service),
 ):
     return await service.get_zones(building_id)
+
+
+@router.get("/{building_id}/floors", response_model=Sequence[FloorRead])
+async def get_building_floors(
+    building_id: int,
+    service: FloorService = Depends(get_floor_service),
+):
+    return await service.get_by_building(building_id)

@@ -5,7 +5,6 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Identity,
     Index,
-    Integer,
     PrimaryKeyConstraint,
     String,
 )
@@ -18,6 +17,8 @@ class Zone(Base):
     __tablename__ = "zone"
     __table_args__ = (
         ForeignKeyConstraint(["building_id"], ["building.building_id"], ondelete="RESTRICT", onupdate="CASCADE", name="fk_zone_building"),
+        # Composite on purpose: the floor must belong to the same building as the zone. With floor_id NULL it is not checked.
+        ForeignKeyConstraint(["floor_id", "building_id"], ["floor.floor_id", "floor.building_id"], ondelete="RESTRICT", onupdate="CASCADE", name="fk_zone_floor_building"),
         PrimaryKeyConstraint("zone_id", name="zone_pkey"),
         Index("idx_zone_building", "building_id"),
     )
@@ -30,7 +31,12 @@ class Zone(Base):
     )
     building_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
-    floor: Mapped[int | None] = mapped_column(Integer)
+    floor_id: Mapped[int | None] = mapped_column(BigInteger)
 
     building: Mapped["Building"] = relationship("Building", back_populates="zones")
+    # Joined by floor_id only: building_id is already written through `building`. The composite foreign key
+    # (floor_id, building_id) still makes the database reject a floor of another building.
+    floor: Mapped["Floor | None"] = relationship(
+        "Floor", back_populates="zones", primaryjoin="Zone.floor_id == Floor.floor_id", foreign_keys="[Zone.floor_id]"
+    )
     nodes: Mapped[list["Node"]] = relationship("Node", back_populates="zone")

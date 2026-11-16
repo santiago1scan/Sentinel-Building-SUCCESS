@@ -56,7 +56,8 @@ class AlertRead(AlertBase):
 class OpenAlert(AlertRead):
     """What the guard sees: the alert plus where it is and what is normal for that variable."""
 
-    floor: int | None = None
+    floor: int | None = None  # level of the floor (-1 basement, 0 ground floor, 1 first...)
+    floor_name: str | None = None
     zone_name: str | None = None
     node_code: str | None = None
     sensor_code: str | None = None

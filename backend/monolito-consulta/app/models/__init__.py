@@ -5,6 +5,7 @@ from app.models.app_user import AppUser
 from app.models.base import Base
 from app.models.building import Building
 from app.models.connectivity_log import ConnectivityLog
+from app.models.floor import Floor
 from app.models.ingest_message import IngestMessage
 from app.models.node import Node
 from app.models.reading import Reading
@@ -23,6 +24,7 @@ __all__ = [
     "Alert",
     "Building",
     "ConnectivityLog",
+    "Floor",
     "IngestMessage",
     "Node",
     "Reading",
