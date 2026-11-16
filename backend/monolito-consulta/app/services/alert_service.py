@@ -2,7 +2,7 @@
 from collections.abc import Sequence
 
 from app.repositories.alert_repository import AlertRepository
-from app.schemas.alert import AlertCreate, AlertRead, AlertUpdate
+from app.schemas.alert import AlertCreate, AlertRead, AlertUpdate, OpenAlert
 
 
 class AlertService:
@@ -43,3 +43,17 @@ class AlertService:
     async def get_unhandled(self) -> Sequence[AlertRead]:
         alerts = await self.repository.get_unhandled()
         return [AlertRead.model_validate(a) for a in alerts]
+
+    async def get_open(self) -> list[OpenAlert]:
+        """What the guard sees, emergencies first and the biggest deviation on top."""
+        rows = await self.repository.get_open_with_context()
+        return [
+            OpenAlert(**AlertRead.model_validate(row.pop("alert")).model_dump(), **row)
+            for row in rows
+        ]
+
+    async def handle(self, alert_id: int, user_id: int) -> AlertRead | None:
+        alert = await self.repository.get(alert_id)
+        if not alert:
+            return None
+        return AlertRead.model_validate(await self.repository.mark_handled(alert, user_id))

@@ -18,6 +18,8 @@ PROTECTED = [
     ("GET", "/app-users"), ("GET", "/app-roles"),
     ("GET", "/registrations/pending"), ("GET", "/registrations/stream"),
     ("POST", "/registrations/abc/approve"), ("POST", "/registrations/abc/reject"),
+    # Analytics
+    ("GET", "/alerts/open"), ("POST", "/alerts/1/handle"), ("GET", "/alerts/unhandled"), ("GET", "/history"),
 ]
 
 

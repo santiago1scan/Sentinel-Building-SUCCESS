@@ -24,5 +24,10 @@ class Settings(BaseSettings):
     mqtt_tls: bool = False
     mqtt_ca_file: str | None = None
 
+    # A node with no message for longer than this gets a NODE_SILENT technical alert.
+    # The bridge sends a summary every 30 min, so 35 min = one missed summary plus margin.
+    silence_threshold_minutes: int = 35
+    silence_check_seconds: int = 300
+
 
 settings = Settings()

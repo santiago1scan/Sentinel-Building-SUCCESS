@@ -16,6 +16,7 @@ python_files = ["test_*.py"]
 # Integración: necesitan el stack levantado y escriben en BD; ver README.
 markers = [
     "integration: prueba de integración con el stack levantado (escribe en BD)",
+    "db: necesita un PostgreSQL desechable en TEST_DATABASE_URL (borra y recrea las tablas)",
 ]
 
 [tool.black]

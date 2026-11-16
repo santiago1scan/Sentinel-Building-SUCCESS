@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.auth import require_user
 from app.api.routes import (
+    history,
     alerts,
     app_roles,
     app_users,
@@ -201,6 +202,7 @@ app.include_router(sensor_types.router, dependencies=_protected)
 app.include_router(sensors.router, dependencies=_protected)
 app.include_router(readings.router, dependencies=_protected)
 app.include_router(alerts.router, dependencies=_protected)
+app.include_router(history.router, dependencies=_protected)
 app.include_router(connectivity_logs.router, dependencies=_protected)
 app.include_router(app_users.router, dependencies=_protected)
 app.include_router(app_roles.router, dependencies=_protected)
