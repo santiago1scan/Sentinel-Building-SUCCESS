@@ -16,25 +16,6 @@
   color: var(--text-muted);
 }
 
-.pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 13px;
-  border-radius: 25px;
-  background: var(--status-connected-bg);
-  color: var(--status-connected-text);
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--status-connected);
-}
-
 @media (max-width: 650px) {
   .title h1 {
     font-size: 22px;

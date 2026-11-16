@@ -1,38 +1,16 @@
-
-import { useEffect, useState } from "react";
+import { NavLink } from "react-router";
 import styles from "./Sidebar.module.css";
 
 const menuItems = [
-  { id: "dashboard", name: "Panel principal", icon: "⌂" },
-  { id: "buildings", name: "Edificios", icon: "▦" },
-  { id: "zones", name: "Zonas", icon: "▱" },
-  { id: "nodes", name: "Nodos sensores", icon: "◉" },
-  { id: "events", name: "Eventos", icon: "⚠" },
-  { id: "history", name: "Historial", icon: "◷" },
+  { to: "/panel", name: "Panel principal", icon: "⌂" },
+  { to: "/edificios", name: "Edificios", icon: "▦" },
+  { to: "/zonas", name: "Zonas", icon: "▱" },
+  { to: "/nodos", name: "Nodos sensores", icon: "◉" },
+  { to: "/eventos", name: "Eventos", icon: "⚠" },
+  { to: "/historial", name: "Historial", icon: "◷" },
 ];
 
 function Sidebar() {
-  const [activePage, setActivePage] = useState("dashboard");
-
-  useEffect(() => {
-    function handleNavigation(event) {
-      setActivePage(event.detail);
-    }
-
-    window.addEventListener("navigate", handleNavigation);
-
-    return () => {
-      window.removeEventListener("navigate", handleNavigation);
-    };
-  }, []);
-
-  function navigate(id) {
-    setActivePage(id);
-    window.dispatchEvent(
-      new CustomEvent("navigate", { detail: id })
-    );
-  }
-
   return (
     <aside className={styles.sidebar}>
       <div className={styles.brand}>
@@ -40,18 +18,19 @@ function Sidebar() {
         <span>Monitoreo y coordinación de emergencias</span>
       </div>
 
-      <nav className={styles.nav}>
+      <nav className={styles.nav} aria-label="Principal">
         {menuItems.map((item) => (
-          <button
-            key={item.id}
-            className={`${styles.link} ${
-              activePage === item.id ? styles.active : ""
-            }`}
-            onClick={() => navigate(item.id)}
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === "/panel"}
+            className={({ isActive }) =>
+              `${styles.link} ${isActive ? styles.active : ""}`
+            }
           >
-            <span className={styles.icon}>{item.icon}</span>
+            <span className={styles.icon} aria-hidden="true">{item.icon}</span>
             {item.name}
-          </button>
+          </NavLink>
         ))}
       </nav>
 

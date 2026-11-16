@@ -1,71 +1,45 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
-import { useEffect, useState } from "react";
+import ProtectedRoute from "./app/ProtectedRoute";
+import PanelLayout from "./app/PanelLayout";
+import LoginPage from "./features/login/LoginPage";
+import HomePage from "./features/home/HomePage";
 
-import MainLayout from "./shared/ui/templates/MainLayout";
-
-const pages = {
-  dashboard: {
-    title: "Panel principal",
-    subtitle: "Monitoreo y coordinación de emergencias",
-  },
-  buildings: {
-    title: "Edificios",
-    subtitle: "Administración de edificios registrados",
-  },
-  zones: {
-    title: "Zonas",
-    subtitle: "Organización de pisos y zonas monitoreadas",
-  },
-  nodes: {
-    title: "Nodos sensores",
-    subtitle: "Registro, asignación y estado de dispositivos",
-  },
-  events: {
-    title: "Eventos",
-    subtitle: "Consulta y seguimiento de alertas",
-  },
-  simulator: {
-    title: "Simulador",
-    subtitle: "Pruebas controladas de escenarios",
-  },
-  history: {
-    title: "Historial",
-    subtitle: "Consulta de eventos registrados anteriormente",
-  },
-};
+/** Marcador para las secciones que aún no tienen pantalla. */
+function ModuleInProgress({ name }) {
+  return (
+    <section className="card">
+      <h2>{name}</h2>
+      <p>Este módulo está en desarrollo.</p>
+    </section>
+  );
+}
 
 function App() {
-  const [currentPage, setCurrentPage] = useState("dashboard");
-
-  useEffect(() => {
-    function handleNavigation(event) {
-      setCurrentPage(event.detail);
-    }
-
-    window.addEventListener("navigate", handleNavigation);
-
-    return () => {
-      window.removeEventListener("navigate", handleNavigation);
-    };
-  }, []);
-
-  // Las páginas se implementarán en features/. Por ahora todas muestran un marcador.
-  function renderPage() {
-    return (
-      <div className="card">
-        <h2>{pages[currentPage]?.title}</h2>
-        <p>Este módulo está en desarrollo.</p>
-      </div>
-    );
-  }
-
   return (
-    <MainLayout
-      title={pages[currentPage]?.title}
-      subtitle={pages[currentPage]?.subtitle}
-    >
-      {renderPage()}
-    </MainLayout>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          element={
+            <ProtectedRoute>
+              <PanelLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="panel" element={<ModuleInProgress name="Panel principal" />} />
+          <Route path="edificios" element={<ModuleInProgress name="Edificios" />} />
+          <Route path="zonas" element={<ModuleInProgress name="Zonas" />} />
+          <Route path="nodos" element={<ModuleInProgress name="Nodos sensores" />} />
+          <Route path="eventos" element={<ModuleInProgress name="Eventos" />} />
+          <Route path="historial" element={<ModuleInProgress name="Historial" />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

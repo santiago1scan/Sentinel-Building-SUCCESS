@@ -36,11 +36,13 @@
 
 .link {
   padding: 13px;
+  display: block;
   border: none;
   border-radius: 9px;
   background: none;
   color: var(--on-primary-soft);
   text-align: left;
+  text-decoration: none;
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;

@@ -27,6 +27,22 @@ button {
   font-family: inherit;
 }
 
+/* Foco visible para navegación con teclado */
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Sin animaciones para quien las desactiva en el sistema */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
 /* Contenedor general de contenido */
 .card {
   padding: 18px;

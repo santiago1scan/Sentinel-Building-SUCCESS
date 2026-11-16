@@ -1,0 +1,105 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--brand-primary);
+  color: var(--text);
+}
+
+.main {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px 48px;
+}
+
+.form {
+  width: min(400px, 100%);
+  display: grid;
+  gap: 20px;
+  padding: 36px 32px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--brand-primary);
+  color: var(--on-primary);
+  font-size: 24px;
+}
+
+.heading {
+  display: grid;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: var(--status-alert-bg);
+  color: var(--status-alert-text);
+  font-weight: bold;
+}
+
+.provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.provider:hover {
+  background: var(--surface-2);
+}
+
+.provider:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.providerIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand-accent);
+  color: var(--on-primary);
+  font-size: 14px;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
