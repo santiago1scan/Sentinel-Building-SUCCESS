@@ -1,430 +1,169 @@
-# Sentinel Building - Sistema Integrado
+# Sentinel Building
 
-Sistema completo de monitoreo de sensores en edificios con arquitectura distribuida basada en contenedores Docker.
+Sistema de monitoreo de sensores en edificios. Los sensores (o el simulador) envían lecturas por MQTT,
+el backend las guarda y genera alertas, y el panel web permite administrar edificios, zonas y nodos,
+y atender alertas.
 
-## 📋 Descripción General
+## Componentes
 
-Sentinel Building es un sistema de ingesta y gestión de lecturas de sensores distribuidos en edificios. Incluye:
-- **Backend API** - FastAPI para gestión de datos
-- **Simulador MQTT** - Generador de datos de sensores virtuales
-- **Bridge** - Receptor de datos del simulador
-- **Broker MQTT** - Mosquitto para pub/sub de telemetría
-- **Base de datos** - PostgreSQL para persistencia
+| Componente | Dónde corre | Puerto en tu equipo | Qué hace |
+|---|---|---|---|
+| PostgreSQL (`success_db`) | Docker | `127.0.0.1:5432` | Base de datos `success` |
+| Mosquitto (`sentinel-mosquitto`) | Docker | `8883` (MQTT sobre TLS) | Broker MQTT. No acepta conexiones anónimas ni sin TLS |
+| monolito-escucha (`monolito_escucha`) | Docker | `8089` | Recibe telemetría, guarda lecturas y genera alertas. Aplica las migraciones de la base |
+| monolito-consulta (`monolito_consulta`) | Docker | `8090` | API del panel: edificios, zonas, nodos, alertas. Exige sesión de Firebase |
+| bridge (`sentinel-bridge`) | Docker | `8766` | Recibe datos del simulador y los reenvía a escucha |
+| simulador (`sentinel-mqtt-simulator`) | Docker | interno | Genera lecturas de sensores de prueba |
+| Frontend | Tu equipo (Vite) | `5173` por defecto | Panel web de administración |
 
-## 🏗️ Arquitectura
+El mock backend ya no forma parte del sistema.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    SENTINEL BUILDING                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐                │
-│  │ MQTT Simulator   │──│   Mosquitto      │                │
-│  │ (Sensores)       │  │   (Broker MQTT)  │                │
-│  └────────┬─────────┘  └──────────────────┘                │
-│           │                    ▲                            │
-│           │                    │ sentinel/v1/SB-001/*       │
-│           ▼                    │                            │
-│  ┌──────────────────┐  ┌──────┴──────────┐                │
-│  │  Bridge Service  │──│  Mock Backend   │                │
-│  │  (HTTP receiver) │  │  (FastAPI)      │                │
-│  └────────┬─────────┘  └─────────────────┘                │
-│           │                                                │
-│           ▼                                                │
-│  ┌─────────────────────────────────────────┐              │
-│  │   MONOLITO-ESCUCHA (FastAPI Backend)    │              │
-│  │   - Gestión de sensores                 │              │
-│  │   - Procesamiento de lecturas            │              │
-│  │   - Alertas                              │              │
-│  └────────────┬────────────────────────────┘              │
-│               │                                            │
-│               ▼                                            │
-│  ┌─────────────────────────────────────────┐              │
-│  │      PostgreSQL (Base de Datos)         │              │
-│  │      - Buildings, Zones, Nodes          │              │
-│  │      - Sensors, Readings, Alerts        │              │
-│  └─────────────────────────────────────────┘              │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+---
 
-## 🚀 Inicio Rápido
+## Primera ejecución, paso a paso
 
-### Prerequisitos
-- Docker
-- Docker Compose
-- Git
+### 0. Requisitos
 
-### Levantar los Servicios
+- Docker y Docker Compose v2
+- Node.js (una versión LTS reciente) y npm, para el frontend
+- `openssl` para generar contraseñas
+- Un proyecto de Firebase con **Authentication → Google** activado y tu correo de administrador
+
+### 1. Crear el `.env` de la raíz
+
+Este archivo lo lee `docker compose`. No se sube a git.
 
 ```bash
-cd /home/santiago/Documentos/sentinel-builder
-docker compose up -d
+cp .env.example .env
 ```
 
-El sistema estará completamente operativo en ~15 segundos.
+Completa estas variables:
 
-### Verificar Estado
+| Variable | Valor |
+|---|---|
+| `POSTGRES_DB` | `success` (o el nombre que quieras) |
+| `POSTGRES_USER` | `admin` (o el que quieras) |
+| `POSTGRES_PASSWORD` | una contraseña generada, ver abajo |
+| `MQTT_ADMIN_PASSWORD` | una contraseña generada, ver abajo |
+| `MQTT_CONSUMER_USERNAME` | `escucha-consumer` |
+| `MQTT_CONSUMER_PASSWORD` | una contraseña generada, ver abajo |
+| `SENTINEL_NODE_TOKENS` | déjala vacía en la primera ejecución |
+| `FIREBASE_PROJECT_ID` | el ID del proyecto de Firebase (Configuración del proyecto → General) |
+| `FIREBASE_ADMIN_EMAILS` | tu correo, con el que vas a iniciar sesión |
+
+Para generar cada contraseña:
+
+```bash
+openssl rand -hex 32
+```
+
+Usa una contraseña distinta para cada variable y guárdalas en un gestor de contraseñas.
+
+> `docker compose` solo toma las variables de Firebase del `.env` de la **raíz**. El archivo
+> `backend/monolito-consulta/.env` solo se usa si ejecutas el backend fuera de Docker.
+
+### 2. Levantar la infraestructura
+
+```bash
+./bootstrap.sh
+```
+
+El script hace lo siguiente, en orden. Puedes volver a ejecutarlo sin problema:
+
+1. Genera los certificados TLS del broker en `backend/mosquitto/certs/`, si no existen.
+2. Crea la base de seguridad del broker en `backend/mosquitto/data/`, si no existe. Esa base guarda
+   las cuentas MQTT, así que **no la borres** si ya tiene nodos registrados.
+3. Levanta Mosquitto.
+4. Crea o actualiza la cuenta `escucha-consumer` con `MQTT_CONSUMER_PASSWORD`.
+5. Levanta el resto del backend con `docker compose up -d --build`: PostgreSQL, escucha, consulta,
+   bridge y simulador.
+
+Si el script se detiene, corrige el error que muestra y vuelve a ejecutarlo.
+
+### 3. Verificar
 
 ```bash
 docker compose ps
 ```
 
-Resultado esperado:
-```
-NAME                      STATUS              PORTS
-monolito_escucha          Up                  0.0.0.0:8089->8089/tcp
-sentinel-bridge           Up                  0.0.0.0:8766->8766/tcp
-sentinel-mock-backend     Up                  0.0.0.0:8000->8000/tcp
-sentinel-mosquitto        Up (healthy)        0.0.0.0:1883->1883/tcp
-sentinel-mqtt-simulator   Running             (internal)
-success_db                Up (healthy)        127.0.0.1:5432->5432/tcp
-```
-
-## 📡 Servicios Disponibles
-
-### 1. Backend API (Monolito-Escucha)
-- **Puerto:** 8089
-- **URL:** `http://localhost:8089`
-- **Documentación:** `http://localhost:8089/docs`
-- **Health:** `http://localhost:8089/health`
-
-**Tecnología:** FastAPI + SQLAlchemy + PostgreSQL
-
-### 2. Broker MQTT (Mosquitto)
-- **Puerto:** 8883 (MQTT sobre TLS). No hay puerto 1883 ni WebSocket.
-- **Host:** `mosquitto` (dentro de Docker)
-- **Anónimo:** Deshabilitado. Cada nodo se autentica con su token; ver `backend/mosquitto/README.md`
-
-**Canales de Telemetría:**
-- `sentinel/v1/SB-001/telemetry/batch` - Lotes de telemetría
-- `sentinel/v1/SB-001/telemetry/aggregate` - Agregados
-- `sentinel/v1/SB-001/emergency` - Alertas de emergencia
-
-### 3. Mock Backend (FastAPI)
-- **Puerto:** 8000
-- **URL:** `http://localhost:8000`
-- **Health:** `http://localhost:8000/health`
-
-**Propósito:** Simular backend remoto para pruebas
-
-### 4. Bridge Service
-- **Puerto:** 8766
-- **URL:** `http://localhost:8766`
-
-**Propósito:** Recibir datos del simulador y procesarlos
-
-### 5. Base de Datos PostgreSQL
-- **Puerto:** 5432 (solo localhost)
-- **Host:** `localhost`
-- **Usuario:** admin
-- **Contraseña:** change_me (en `.env`)
-- **BD:** success
-
-### 6. Simulador MQTT
-- **Tipo:** Generador de datos de sensores
-- **Estado:** REPL interactiva
-- **Canales:** Publica en Mosquitto
-
-## 📊 Endpoints de API
-
-### Telemetría
-
-#### POST - Crear Telemetría
-```
-POST http://localhost:8089/telemetry/aggregate
-Content-Type: application/json
-
-{
-  "schema_version": "1.0",
-  "message_uid": "msg-uuid-123",
-  "message_type": "telemetry",
-  "building_uid": "bld-123",
-  "building_code": "BLDG-001",
-  "generated_at": "2026-10-27T22:30:00Z",
-  "sent_at": "2026-10-27T22:30:01Z",
-  "sequence_number": 1,
-  "priority": "normal",
-  "quality": "valid",
-  "delivery_policy": "immediate",
-  "delivery_status": "pending",
-  "transport": "http",
-  "window": {
-    "start": "2026-10-27T22:20:00Z",
-    "end": "2026-10-27T22:30:00Z",
-    "duration_seconds": 600,
-    "sample_count": 10
-  },
-  "bridges": [
-    {
-      "node_uid": "node-123",
-      "node_code": "NODE-001",
-      "node_name": "Node 1",
-      "floor": 1,
-      "zone_uid": "zone-123",
-      "zone_code": "ZONE-A",
-      "sensors": [
-        {
-          "sensor_uid": "sensor-123",
-          "sensor_code": "SENSOR-001",
-          "sensor_model": "TMP36",
-          "measurement_type": "temperature",
-          "sample_count": 10,
-          "data": {
-            "average_avg_c": 24.5,
-            "maximum_avg_c": 25.0,
-            "maximum_c": 26.5
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Response (202 Accepted):**
-```json
-{
-  "message_uid": "msg-uuid-123",
-  "readings_created": 1,
-  "errors": []
-}
-```
-
-#### GET - Obtener Telemetría por Node (Paginado)
-```
-GET http://localhost:8089/telemetry/node/{node_id}?limit=100&offset=0
-```
-
-**Parámetros:**
-- `node_id` (path): ID del nodo
-- `limit` (query): Registros por página (1-1000, default: 100)
-- `offset` (query): Desplazamiento (default: 0)
-
-**Response (200):**
-```json
-{
-  "node": {
-    "node_id": 1,
-    "code": "NODE-001",
-    "name": "Node Principal",
-    "ip_address": "192.168.1.100",
-    "local_storage_mb": 512.50,
-    "registered_at": "2026-10-27T10:00:00Z",
-    "last_signal_received_at": "2026-10-27T22:30:00Z"
-  },
-  "zone": {
-    "zone_id": 1,
-    "code": "ZONA-A",
-    "floor": 1
-  },
-  "building": {
-    "building_id": 1,
-    "name": "Edificio Principal",
-    "address": "Calle Principal 123"
-  },
-  "pagination": {
-    "limit": 100,
-    "offset": 0,
-    "count": 2
-  },
-  "telemetry_readings": [
-    {
-      "reading": {
-        "reading_id": 101,
-        "sensor_id": 1,
-        "receiving_node_id": 1,
-        "measured_at": "2026-10-27T22:30:00Z",
-        "received_at": "2026-10-27T22:30:01Z",
-        "measured_value": "24.50",
-        "sequence_number": 10
-      },
-      "sensor": {
-        "sensor_id": 1,
-        "code": "SENSOR-001",
-        "connection_type": "I2C",
-        "connection_address": "0x77",
-        "sensor_type": {
-          "sensor_type_id": 1,
-          "name": "Temperature Sensor",
-          "sampling_interval": 30,
-          "default_unit": "Celsius",
-          "normal_minimum": 15.0,
-          "normal_maximum": 30.0
-        },
-        "primary_node": {
-          "node_id": 1,
-          "code": "NODE-001",
-          "name": "Node Principal"
-        }
-      }
-    }
-  ]
-}
-```
-
-### Otros Endpoints
-
-**Documentación completa:** `http://localhost:8089/docs`
-
-## 🔌 Monitoreo MQTT
-
-### Suscribirse a Canales
+Deben aparecer `success_db` y `sentinel-mosquitto` como `healthy`, y `monolito_escucha`, `monolito_consulta`,
+`sentinel-bridge` y `sentinel-mqtt-simulator` como `Up`.
 
 ```bash
-# Ver todos los mensajes de telemetría
-docker exec sentinel-mosquitto mosquitto_sub -h 127.0.0.1 -t "sentinel/v1/SB-001/#" -v
-
-# Solo telemetría batch
-docker exec sentinel-mosquitto mosquitto_sub -h 127.0.0.1 -t "sentinel/v1/SB-001/telemetry/batch" -v
-
-# Solo emergencias
-docker exec sentinel-mosquitto mosquitto_sub -h 127.0.0.1 -t "sentinel/v1/SB-001/emergency" -v
+curl http://localhost:8089/health    # escucha
+curl http://localhost:8090/health    # consulta
+curl -i http://localhost:8090/nodes  # debe responder 401: la ruta exige sesión
 ```
 
-### Publicar Mensaje de Prueba
+Si `/nodes` responde `503`, `FIREBASE_PROJECT_ID` está vacío en el `.env` de la raíz.
+
+### 4. Frontend
 
 ```bash
-docker exec sentinel-mosquitto mosquitto_pub -h 127.0.0.1 -t "test/topic" -m "Hello Sentinel"
+cd frontend
+cp .env.example .env
 ```
 
-## 🎮 Interactuar con el Simulador
-
-El simulador está en modo REPL interactivo. Accede con:
+En `frontend/.env` completa los valores `VITE_FIREBASE_*` con la configuración del SDK de tu app web
+(Firebase console → Configuración del proyecto → Tus apps). `VITE_API_URL` ya apunta a `http://localhost:8090`.
 
 ```bash
-docker attach sentinel-mqtt-simulator
+npm install
+npm run dev
 ```
 
-**Comandos disponibles:**
-```
-bridge1 on|off        - Activar/desactivar bridge 1
-bridge2 on|off        - Activar/desactivar bridge 2
-lora1 on|off          - Activar/desactivar LoRa 1
-lora2 on|off          - Activar/desactivar LoRa 2
-mesh on|off           - Activar/desactivar mesh
-mqtt on|off           - Activar/desactivar MQTT
-anomaly               - Inyectar anomalía
-clear                 - Limpiar anomalías
-status                - Ver estado actual
-quit                  - Salir
+Abre `http://localhost:5173`, pulsa **Iniciar sesión** e inicia sesión con Google usando el correo de
+`FIREBASE_ADMIN_EMAILS`. Si la cuenta no está en esa lista, el panel mostrará que no tiene permisos.
+
+### 5. Ver el flujo de datos
+
+```bash
+docker compose logs -f mqtt-sensor-simulator   # lecturas generadas
+docker compose logs -f monolito-escucha        # lecturas guardadas y alertas
 ```
 
-**Ejemplo:**
-```
-mqtt-sim> mqtt on
-Publicación MQTT activada
-mqtt-sim> status
-Bridge 1: UP, Bridge 2: DOWN, LoRa 1: UP, LoRa 2: DOWN
-MQTT: ON, Mesh: UP
-```
+---
 
-## 🔧 Variables de Entorno
+## Comandos del día a día
 
-Archivo `.env` en la raíz:
-
-```env
-POSTGRES_DB=success
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=change_me
+```bash
+docker compose ps                    # estado de los servicios
+docker compose logs -f <servicio>    # logs, por ejemplo monolito-escucha
+docker compose restart <servicio>    # reiniciar un servicio
+docker compose stop                  # detener, conserva los datos
+docker compose up -d --build         # reconstruir imágenes y levantar
+./bootstrap.sh                       # volver a preparar broker y cuenta de escucha
 ```
 
-## 📁 Estructura de Directorios
+> `docker compose down -v` **borra la base de datos** y los volúmenes del simulador. Úsalo solo si
+> quieres empezar de cero.
+
+## Estructura del repositorio
 
 ```
 sentinel-builder/
-├── compose.yaml              # Orquestación de servicios
-├── .env                       # Variables de entorno
-├── README.md                  # Este archivo
+├── compose.yaml          # servicios Docker
+├── bootstrap.sh          # preparación del broker y arranque del backend
+├── .env                  # variables de Docker Compose (no se sube a git)
 ├── backend/
-│   ├── monolito-escucha/     # Backend principal
-│   ├── sumothings_db/        # Migraciones BD
-│   └── .env                  # Variables del backend
-├── simulator/
-│   ├── Dockerfile            # Imagen del simulador
-│   ├── mqtt_sensor_simulator.py    # Simulador MQTT
-│   ├── bridge/bridge_service.py    # Servicio bridge
-│   ├── mock_backend/         # Mock backend
-│   └── requirements.txt       # Dependencias Python
-└── frontend/
-    └── (estructura pendiente)
+│   ├── monolito-escucha/ # ingesta de telemetría y alertas
+│   ├── monolito-consulta/# API del panel
+│   └── mosquitto/        # configuración, certificados y base del broker
+├── simulator/            # simulador de sensores y bridge
+└── frontend/             # panel web (React + Vite)
 ```
 
-## 🐳 Comandos Útiles
+## Solución de problemas
 
-### Ver Logs
+| Síntoma | Causa probable |
+|---|---|
+| `required variable MQTT_ADMIN_PASSWORD is missing` | Falta la variable en el `.env` de la raíz |
+| `No module named 'app.scripts'` | Imagen de consulta antigua. Usa `docker compose run --build` o `./bootstrap.sh` |
+| `/nodes` responde `503` | `FIREBASE_PROJECT_ID` vacío |
+| Inicias sesión y el panel dice que no tienes permisos | Tu correo no está en `FIREBASE_ADMIN_EMAILS` |
+| El frontend dice que faltan variables de Firebase | Falta completar `frontend/.env` |
+| El simulador no conecta con el broker | Certificados o base del broker incompletos. Revisa `backend/mosquitto/README.md` |
 
-```bash
-# Todos los servicios
-docker compose logs -f
+---
 
-# Solo backend
-docker compose logs -f monolito-escucha
-
-# Solo simulador
-docker compose logs -f mqtt-sensor-simulator
-
-# Solo MQTT broker
-docker compose logs -f mosquitto
-```
-
-### Detener/Reiniciar
-
-```bash
-# Detener todo (mantiene volúmenes)
-docker compose stop
-
-# Detener todo (elimina volúmenes)
-docker compose down -v
-
-# Reiniciar un servicio
-docker compose restart monolito-escucha
-
-# Reconstruir imágenes
-docker compose up -d --build
-```
-
-### Acceder a Contenedores
-
-```bash
-# Terminal en backend
-docker exec -it monolito_escucha bash
-
-# Terminal en simulador
-docker exec -it sentinel-mqtt-simulator bash
-
-# Terminal en Mosquitto
-docker exec -it sentinel-mosquitto sh
-```
-
-## 🐘 Acceso a Base de Datos
-
-### Con psql
-
-```bash
-psql -h 127.0.0.1 -U admin -d success -W
-# Password: change_me
-```
-
-### Ver lecturas recientes
-
-```sql
-SELECT r.reading_id, s.code as sensor_code, r.measured_value, r.received_at
-FROM reading r
-JOIN sensor s ON r.sensor_id = s.sensor_id
-ORDER BY r.received_at DESC
-LIMIT 10;
-```
-
-## ⚠️ Troubleshooting
-
-### "Connection refused" en Mosquitto
-**Problema:** El simulador no puede conectarse a Mosquitto
-**Solución:** 
-- Verificar que Mosquitto esté levantado: `docker compose ps`
-- Revisar que existan `backend/mosquitto/certs/` y `backend/mosquitto/data/` (ver `backend/mosquitto/README.md`)
-- Reiniciar contenedor: `docker compose restart mosquitto`
-
-
-**Última actualización:** 2026-10-27
-**Versión:** 0.1.0
+*Última actualización: 2026-11-16*

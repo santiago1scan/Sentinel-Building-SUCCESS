@@ -107,18 +107,6 @@ services:
     # Sin "alembic upgrade head": escucha ya versiona la BD compartida (alembic_version).
     command: uvicorn app.main:app --host 0.0.0.0 --port 8089
 
-  mock-backend:
-    build:
-      context: ./simulator
-      dockerfile: Dockerfile
-    container_name: sentinel-mock-backend
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    networks:
-      - sentinel-net
-    command: python -m uvicorn mock_backend.fastapi_app:app --host 0.0.0.0 --port 8000
-
   bridge:
     build:
       context: ./simulator
