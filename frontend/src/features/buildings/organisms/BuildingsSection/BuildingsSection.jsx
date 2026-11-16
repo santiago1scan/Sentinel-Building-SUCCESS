@@ -48,8 +48,10 @@ function BuildingsSection() {
         <ul className={styles.grid}>
           {state.items.map((building) => (
             <li key={building.building_id}>
-              <BuildingCard building={building}>
-                <Button variant="active">Agregar zona</Button>
+              <BuildingCard
+                building={building}
+                onOpen={(item) => navigate(`/panel/builders/${item.building_id}`)}
+              >
               </BuildingCard>
             </li>
           ))}

@@ -1,0 +1,20 @@
+/* Pisos en una columna, cada uno a todo el ancho. La lista hace scroll si no cabe. */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid > li {
+  min-width: 0;
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-muted);
+}

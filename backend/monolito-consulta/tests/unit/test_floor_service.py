@@ -82,7 +82,7 @@ def service(floors):
 
 
 def test_default_names():
-    assert default_floor_name(0) == "Planta baja"
+    assert default_floor_name(0) == "Piso 0"
     assert default_floor_name(-1) == "Sótano 1"
     assert default_floor_name(-2) == "Sótano 2"
     assert default_floor_name(3) == "Piso 3"

@@ -11,6 +11,15 @@
   box-shadow: var(--shadow-card);
 }
 
+.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clickable:hover {
+  border-color: var(--accent-text);
+}
+
 .header {
   min-width: 0;
 }

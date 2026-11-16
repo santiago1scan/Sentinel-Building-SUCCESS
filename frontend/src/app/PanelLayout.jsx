@@ -32,10 +32,18 @@ const pageInfo = {
   },
 };
 
+/** Ruta de un edificio concreto: /panel/builders/:id (el nombre va en la página, no en el encabezado). */
+function buildingInfo(pathname) {
+  if (/^\/panel\/builders\/\d+$/.test(pathname)) {
+    return { title: "Edificio", subtitle: "Pisos y zonas del edificio" };
+  }
+  return undefined;
+}
+
 /** Estructura de las pantallas del panel: barra lateral y encabezado, con la página en Outlet. */
 function PanelLayout() {
   const { pathname } = useLocation();
-  const info = pageInfo[pathname] ?? pageInfo["/panel"];
+  const info = pageInfo[pathname] ?? buildingInfo(pathname) ?? pageInfo["/panel"];
 
   return (
     <MainLayout title={info.title} subtitle={info.subtitle}>

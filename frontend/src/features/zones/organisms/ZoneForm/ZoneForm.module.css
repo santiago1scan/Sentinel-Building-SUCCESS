@@ -1,13 +1,31 @@
+/* Columna flex: el cuerpo crece y el pie de "Guardar progreso" queda siempre al fondo. */
 .form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
-  width: min(480px, 100%);
-  padding: clamp(20px, 4vw, 32px);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 24px;
   color: var(--text);
-  box-shadow: var(--shadow-card);
+}
+
+.body {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
 .header {
@@ -18,13 +36,18 @@
 .title {
   margin: 0;
   font-size: 20px;
-  letter-spacing: -0.01em;
+}
+
+.level {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: bold;
 }
 
 .subtitle {
   margin: 0;
   color: var(--text-muted);
-  line-height: 1.5;
+  font-size: 14px;
 }
 
 .fields {
@@ -35,12 +58,12 @@
 .actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   margin: 0;
   padding: 11px 14px;
   border-radius: 10px;
@@ -66,21 +89,8 @@
 }
 
 .item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 10px 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface-2);
-}
-
-.floorNumber {
-  font-weight: bold;
-  font-variant-numeric: tabular-nums;
-}
-
-.floorName {
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
 }

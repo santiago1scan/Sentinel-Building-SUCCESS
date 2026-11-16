@@ -8,9 +8,7 @@ from app.schemas.floor import FloorCreate, FloorRead, FloorUpdate
 
 
 def default_floor_name(level: int) -> str:
-    """Same names the migration gave to existing floors."""
-    if level == 0:
-        return "Planta baja"
+    """Nombre por omisión: "Sótano N" para los niveles negativos y "Piso N" para el resto (0 incluido)."""
     if level < 0:
         return f"Sótano {-level}"
     return f"Piso {level}"

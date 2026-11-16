@@ -58,7 +58,7 @@ async def test_create_and_list_floors_of_a_building(api):
 
     assert [r.status_code for r in (basement, ground, first)] == [201, 201, 201]
     assert basement.json()["name"] == "Sótano 1"  # default names
-    assert ground.json()["name"] == "Planta baja"
+    assert ground.json()["name"] == "Piso 0"
     assert first.json()["name"] == "Primer piso"
 
     # Out of order on purpose: the list must come back from the lowest level up.

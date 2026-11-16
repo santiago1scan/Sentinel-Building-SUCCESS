@@ -1,0 +1,63 @@
+.box {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.box[draggable="true"] {
+  cursor: grab;
+}
+
+.box[data-saved="true"] {
+  border-color: var(--status-connected);
+}
+
+/* Sótano: se distingue de los pisos con borde punteado y fondo propio. */
+.box[data-kind="basement"] {
+  border: 2px dashed var(--accent-text);
+  background: var(--surface);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.handle {
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.level {
+  margin: 0;
+  font-size: 17px;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.box[data-kind="basement"] .badge {
+  background: var(--accent-text);
+  color: var(--surface);
+}
+
+.box[data-saved="true"] .badge {
+  background: var(--status-connected-bg);
+  color: var(--status-connected-text);
+}
+
+.head > button {
+  margin-left: auto;
+}

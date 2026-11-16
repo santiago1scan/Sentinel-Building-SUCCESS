@@ -7,14 +7,22 @@
 }
 
 .mainContent {
+  display: flex;
+  flex-direction: column;
   width: calc(100% - var(--sidebar-width));
-  min-height: 100vh;
+  height: 100vh;
   margin-left: var(--sidebar-width);
   padding: 26px;
 }
 
+/* Ocupa el alto que deja el encabezado: las páginas que llenan la pantalla pueden usar flex: 1. */
 .pageContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   width: 100%;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 @media (max-width: 650px) {

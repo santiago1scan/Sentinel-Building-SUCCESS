@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class FloorCreate(BaseModel):
     """`level` is the number: -1 basement, 0 ground floor, 1 first floor... `name` is optional.
 
-    Without a name it becomes "Planta baja", "Sótano N" or "Piso N".
+    Without a name it becomes "Sótano N" (negative levels) or "Piso N".
     """
 
     building_id: int

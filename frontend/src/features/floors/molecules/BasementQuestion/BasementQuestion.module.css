@@ -1,0 +1,21 @@
+.box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.question {
+  font-weight: bold;
+}
+
+.options {
+  display: flex;
+  gap: 8px;
+}

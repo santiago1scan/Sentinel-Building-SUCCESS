@@ -1,0 +1,46 @@
+.floor {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  display: grid;
+  gap: 2px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.level {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: bold;
+}
+
+/* División en grilla por zonas: cada zona ocupa una columna y se acomodan según el ancho. */
+.zones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-content: start;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
