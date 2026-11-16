@@ -7,8 +7,9 @@ from pydantic import BaseModel, Field
 class RegistrationRequest(BaseModel):
     code: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=150)
-    building_code: str = Field(min_length=1, max_length=50)
-    zone_code: str = Field(min_length=1, max_length=50)
+    # Ids de la base de datos (building.building_id y zone.zone_id). La zona debe pertenecer al edificio.
+    building_id: int = Field(gt=0)
+    zone_id: int = Field(gt=0)
 
 
 class RegistrationAccepted(BaseModel):
@@ -22,15 +23,16 @@ class PendingRegistrationRead(BaseModel):
     registration_id: str
     code: str
     name: str
-    building_code: str
-    zone_code: str
+    building_id: int
+    zone_id: int  # zona que pidió el bridge
     status: str
     created_at: datetime.datetime
     expires_at: datetime.datetime
 
 
 class ApproveRegistrationRequest(BaseModel):
-    zone_id: int = Field(gt=0)
+    # Opcional: por defecto se usa la zona que pidió el bridge. Si se envía, debe ser del mismo edificio.
+    zone_id: int | None = Field(default=None, gt=0)
 
 
 class ApprovedRegistrationRead(BaseModel):
