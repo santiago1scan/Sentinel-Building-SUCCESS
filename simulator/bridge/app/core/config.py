@@ -44,9 +44,6 @@ class Settings(BaseSettings):
     firebase_storage_bucket: str = ""
     firebase_admin_emails: str = ""
 
-    # Panel de simulación (scenario_server.py) al que se entra después del login.
-    panel_url: str = "http://127.0.0.1:8790"
-
 
 def parse_node_tokens(spec: str | None) -> dict[str, str]:
     """Parsea 'NODE-FLOOR-1=token1,NODE-FLOOR-2=token2'. Nunca muestra los tokens."""

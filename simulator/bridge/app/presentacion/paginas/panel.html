@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101511">
+  <title>Sentinel Building — Scenario Simulator</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">SB</div>
+        <div>
+          <p class="eyebrow">Sentinel Building · SUCCESS</p>
+          <h1>Disaster Scenario Simulator</h1>
+          <p class="topbar-subtitle">MVP 1 · Simulation control panel</p>
+        </div>
+      </div>
+      <a class="dashboard-link" href="http://127.0.0.1:8780" target="_blank" rel="noopener">
+        Open main dashboard <span aria-hidden="true">↗</span>
+      </a>
+    </header>
+
+    <section class="hero" aria-labelledby="intro-title">
+      <p class="eyebrow">Scenario operations</p>
+      <h2 id="intro-title">Simulate building emergencies</h2>
+      <p>
+        Activate a synthetic disaster scenario and monitor its effect as readings
+        move through the existing simulator, bridge, storage and backend pipeline.
+      </p>
+    </section>
+
+    <div id="warning" class="notice" role="status" aria-live="polite"></div>
+
+    <section class="toolbar" aria-label="Simulator controls">
+      <div class="sim-state">
+        <span id="simulatorDot" class="status-dot" aria-hidden="true"></span>
+        <div>
+          <div id="simulatorState" class="state-title">Checking simulator…</div>
+          <div id="simulatorDetail" class="state-detail">Connecting to the scenario service</div>
+        </div>
+      </div>
+      <div class="toolbar-actions">
+        <button id="startSimulator" class="button-primary" type="button">Start simulator</button>
+        <button id="stopSimulator" class="button-neutral" type="button" disabled>Stop simulator</button>
+        <button id="stopAll" class="button-danger" type="button">Stop all / Return to normal</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="scenarios-title">
+      <div class="section-heading">
+        <h2 id="scenarios-title">Choose a disaster scenario</h2>
+        <p>One scenario at a time · Changes are sent to the simulator process</p>
+      </div>
+
+      <div class="scenario-grid">
+        <article class="scenario-card fire">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">♨</div>
+            <h3>Fire</h3>
+          </div>
+          <p class="description">Elevated thermal readings and degraded air quality.</p>
+          <p class="effect"><strong>Sensors:</strong> GRID-EYE (AMG8833) + BME688</p>
+          <div class="field">
+            <label for="fireNodes">Affected nodes</label>
+            <select id="fireNodes" multiple size="2" aria-describedby="fireNodeHelp">
+              <option value="NODE-FLOOR-1" selected>Floor 1</option>
+              <option value="NODE-FLOOR-2" selected>Floor 2</option>
+            </select>
+            <span id="fireNodeHelp" class="field-help">Select one or both nodes. Use Ctrl-click to change the selection.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="fireDurationMode">Duration</label>
+              <select id="fireDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fireDuration">Seconds</label>
+              <input id="fireDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="fire">Activate fire</button>
+        </article>
+
+        <article class="scenario-card earthquake">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">⌁</div>
+            <h3>Earthquake</h3>
+          </div>
+          <p class="description">A building-wide seismic event detected by the accelerometers.</p>
+          <p class="effect"><strong>Sensor:</strong> ADXL355 · Critical priority</p>
+          <div class="field">
+            <label for="earthquakeNodes">Affected nodes</label>
+            <select id="earthquakeNodes" multiple size="2" aria-describedby="earthquakeNodeHelp">
+              <option value="NODE-FLOOR-1" selected>Floor 1</option>
+              <option value="NODE-FLOOR-2" selected>Floor 2</option>
+            </select>
+            <span id="earthquakeNodeHelp" class="field-help">Both floors are selected by default.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="earthquakeDurationMode">Duration</label>
+              <select id="earthquakeDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="earthquakeDuration">Seconds</label>
+              <input id="earthquakeDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="earthquake">Activate earthquake</button>
+        </article>
+
+        <article class="scenario-card power">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">ϟ</div>
+            <h3>Power failure</h3>
+          </div>
+          <p class="description">Simulate loss of the main supply on one selected node.</p>
+          <p class="effect"><strong>Sensor:</strong> INA219 · Low voltage / battery</p>
+          <div class="field">
+            <label for="powerNode">Affected node <span aria-hidden="true">*</span></label>
+            <select id="powerNode">
+              <option value="NODE-FLOOR-1">Floor 1</option>
+              <option value="NODE-FLOOR-2">Floor 2</option>
+            </select>
+            <span class="field-help">Exactly one node is required.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="powerDurationMode">Duration</label>
+              <select id="powerDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="powerDuration">Seconds</label>
+              <input id="powerDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="power_failure">Activate power failure</button>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="live-title">
+      <div class="section-heading">
+        <h2 id="live-title">Live bridge status</h2>
+        <p>Read-only view of the bridge SQLite database</p>
+      </div>
+      <div class="metrics-grid">
+        <article class="metric">
+          <span class="metric-label">Simulator</span>
+          <strong id="metricSimulator" class="metric-value small">—</strong>
+          <span class="metric-note">Process managed by this panel</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Raw readings</span>
+          <strong id="metricReadings" class="metric-value">—</strong>
+          <span class="metric-note">Total stored by bridge</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Aggregates</span>
+          <strong id="metricAggregates" class="metric-value">—</strong>
+          <span class="metric-note">Packages created</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">REST delivered</span>
+          <strong id="metricRest" class="metric-value">—</strong>
+          <span class="metric-note">Accepted by backend</span>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Pending queue</span>
+          <strong id="metricPending" class="metric-value">—</strong>
+          <span class="metric-note">Waiting for delivery</span>
+        </article>
+      </div>
+
+      <div class="active-panel">
+        <div>
+          <h3 id="activeTitle">No active scenario</h3>
+          <p id="activeDetail">Start the simulator, then activate a scenario.</p>
+        </div>
+        <div class="active-timer" id="activeTimer">—</div>
+      </div>
+      <p id="priorityDetail" class="field-help" style="margin:10px 0 0">Latest aggregate priority: —</p>
+    </section>
+
+    <section aria-labelledby="logs-title">
+      <div class="section-heading">
+        <h2 id="logs-title">Activity and simulator output</h2>
+        <p>Recent scenario actions and the simulator's last 100 output lines</p>
+      </div>
+      <div class="logs-grid">
+        <section class="log-panel" aria-labelledby="events-title">
+          <div class="log-header">
+            <h3 id="events-title">Event timeline</h3>
+            <span class="field-help">Newest first</span>
+          </div>
+          <div id="eventLog" class="log-content" aria-live="polite"><span class="empty">Waiting for panel activity…</span></div>
+        </section>
+        <section class="log-panel" aria-labelledby="output-title">
+          <div class="log-header">
+            <h3 id="output-title">Simulator output</h3>
+            <span class="field-help">Latest output</span>
+          </div>
+          <pre id="simulatorLog" class="log-content"><span class="empty">Simulator output will appear here.</span></pre>
+        </section>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Sentinel Building · SUCCESS · Scenario simulation panel</span>
+      <span id="lastRefresh">Waiting for live status…</span>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    "use strict";
+
+    const $ = (id) => document.getElementById(id);
+    let statusRequestRunning = false;
+    let toastTimer = null;
+
+    function showToast(message, isError = false) {
+      const toast = $("toast");
+      toast.textContent = message;
+      toast.classList.toggle("error", isError);
+      toast.classList.add("visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("visible"), 3800);
+    }
+
+    async function postJson(path, payload = {}) {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.detail || result.error || `Request failed (${response.status})`);
+      }
+      return result;
+    }
+
+    function selectedNodes(selectElement) {
+      return Array.from(selectElement.selectedOptions, (option) => option.value);
+    }
+
+    function durationFor(prefix) {
+      const mode = $(`${prefix}DurationMode`).value;
+      if (mode === "manual") return null;
+      const raw = $(`${prefix}Duration`).value.trim();
+      if (!/^[0-9]+$/.test(raw) || Number(raw) <= 0) {
+        throw new Error("Enter a positive whole number of seconds for automatic duration.");
+      }
+      return Number(raw);
+    }
+
+    function nodeSelectionFor(scenario) {
+      if (scenario === "power_failure") return [$("powerNode").value];
+      if (scenario === "fire") return selectedNodes($("fireNodes"));
+      return selectedNodes($("earthquakeNodes"));
+    }
+
+    function durationPrefixFor(scenario) {
+      if (scenario === "power_failure") return "power";
+      if (scenario === "fire") return "fire";
+      return "earthquake";
+    }
+
+    async function activateScenario(scenario) {
+      try {
+        const nodes = nodeSelectionFor(scenario);
+        if (nodes.length === 0) {
+          throw new Error("Select at least one affected node.");
+        }
+        const duration_s = durationFor(durationPrefixFor(scenario));
+        const result = await postJson("/api/scenario/start", {
+          scenario,
+          nodes,
+          duration_s
+        });
+        showToast(result.message || "Scenario activated.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    }
+
+    function setDurationControl(prefix) {
+      const automatic = $(`${prefix}DurationMode`).value === "automatic";
+      $(`${prefix}Duration`).disabled = !automatic;
+      if (automatic && !$(`${prefix}Duration`).value) {
+        $(`${prefix}Duration`).value = "60";
+      }
+    }
+
+    function formatNumber(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+      return Number(value).toLocaleString();
+    }
+
+    function formatElapsed(seconds) {
+      if (seconds === null || seconds === undefined) return "—";
+      const total = Math.max(0, Math.floor(Number(seconds)));
+      const minutes = Math.floor(total / 60);
+      const remainder = total % 60;
+      return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+    }
+
+    function formatTimestamp(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleTimeString();
+    }
+
+    function renderEvents(events) {
+      const target = $("eventLog");
+      target.replaceChildren();
+      if (!Array.isArray(events) || events.length === 0) {
+        const empty = document.createElement("span");
+        empty.className = "empty";
+        empty.textContent = "Waiting for panel activity…";
+        target.appendChild(empty);
+        return;
+      }
+
+      for (const event of [...events].reverse()) {
+        const line = document.createElement("div");
+        const timestamp = formatTimestamp(event.timestamp);
+        line.textContent = `${timestamp}  ${event.action || "Event"}  ${event.detail || ""}`;
+        target.appendChild(line);
+      }
+    }
+
+    function renderSimulatorLog(lines) {
+      const target = $("simulatorLog");
+      if (!Array.isArray(lines) || lines.length === 0) {
+        target.textContent = "Simulator output will appear here.";
+        target.classList.add("empty");
+        return;
+      }
+      target.classList.remove("empty");
+      target.textContent = lines.join("\n");
+      target.scrollTop = target.scrollHeight;
+    }
+
+    function renderStatus(data) {
+      const status = data.status || {};
+      const bridge = data.bridge || {};
+      const running = Boolean(status.simulator_running);
+
+      $("simulatorDot").classList.toggle("online", running);
+      $("simulatorDot").classList.toggle("warning", !running && Boolean(data.bridge_active));
+      $("simulatorState").textContent = running ? "Simulator running" : "Simulator stopped";
+      $("simulatorDetail").textContent = running
+        ? `Managed by panel · PID ${status.simulator_pid || "—"}`
+        : (status.last_process_exit || "Start the simulator to control scenario events.");
+
+      $("startSimulator").disabled = running;
+      $("stopSimulator").disabled = !running;
+
+      $("metricSimulator").textContent = running ? "RUNNING" : "STOPPED";
+      $("metricSimulator").style.color = running ? "var(--green)" : "var(--muted)";
+      $("metricReadings").textContent = bridge.ready ? formatNumber(bridge.raw_readings) : "—";
+      $("metricAggregates").textContent = bridge.ready ? formatNumber(bridge.aggregates_total) : "—";
+      $("metricRest").textContent = bridge.ready ? formatNumber(bridge.sent_rest) : "—";
+      $("metricPending").textContent = bridge.ready ? formatNumber(bridge.pending) : "—";
+
+      const priority = bridge.ready && bridge.last_priority ? bridge.last_priority : "—";
+      $("priorityDetail").textContent =
+        `Latest aggregate priority: ${priority}` +
+        (bridge.message ? ` · ${bridge.message}` : "");
+
+      const scenario = status.scenario;
+      if (scenario) {
+        const nodeNames = (scenario.nodes || []).map((node) =>
+          node === "NODE-FLOOR-1" ? "Floor 1" : "Floor 2"
+        );
+        const sensors = scenario.sensors || [];
+        $("activeTitle").textContent = `${scenario.label || scenario.name} active`;
+        $("activeDetail").textContent =
+          `Nodes: ${nodeNames.join(", ") || "—"} · Sensors: ${sensors.join(", ") || "—"}`;
+        const elapsed = formatElapsed(scenario.elapsed_s);
+        $("activeTimer").textContent = scenario.duration_s === null
+          ? `Elapsed ${elapsed} · Manual`
+          : `Elapsed ${elapsed} · ${scenario.countdown_s ?? 0}s remaining`;
+      } else {
+        $("activeTitle").textContent = "No active scenario";
+        $("activeDetail").textContent = running
+          ? "Simulator is ready for a scenario."
+          : "Start the simulator, then activate a scenario.";
+        $("activeTimer").textContent = "—";
+      }
+
+      const warning = $("warning");
+      if (data.warning) {
+        warning.textContent = data.warning;
+        warning.classList.add("visible");
+      } else if (data.bridge_active && !running && !status.started_by_panel) {
+        warning.textContent =
+          "The bridge is active, but this panel did not start a simulator. If a simulator is running in another terminal, close it before starting one here.";
+        warning.classList.add("visible");
+      } else if (!bridge.ready) {
+        warning.textContent =
+          "Bridge database is not available yet. Start the bridge and wait for its first readings; the panel will keep checking.";
+        warning.classList.add("visible");
+      } else {
+        warning.textContent = "";
+        warning.classList.remove("visible");
+      }
+
+      renderEvents(status.events);
+      renderSimulatorLog(status.log);
+      $("lastRefresh").textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+    }
+
+    async function refreshStatus() {
+      if (statusRequestRunning) return;
+      statusRequestRunning = true;
+      try {
+        const response = await fetch("/api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Status request failed (${response.status})`);
+        renderStatus(await response.json());
+      } catch (error) {
+        $("simulatorState").textContent = "Panel service unavailable";
+        $("simulatorDetail").textContent = error.message;
+        $("simulatorDot").classList.remove("online");
+        $("simulatorDot").classList.add("warning");
+        $("lastRefresh").textContent = "Could not refresh live status.";
+      } finally {
+        statusRequestRunning = false;
+      }
+    }
+
+    $("startSimulator").addEventListener("click", async () => {
+      try {
+        const result = await postJson("/api/simulator/start");
+        showToast(result.message || "Simulator started.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    $("stopSimulator").addEventListener("click", async () => {
+      if (!window.confirm("Stop the simulator process? Active anomalies will be cleared first.")) return;
+      try {
+        const result = await postJson("/api/simulator/stop");
+        showToast(result.message || "Simulator stopped.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    $("stopAll").addEventListener("click", async () => {
+      try {
+        const result = await postJson("/api/scenario/stop");
+        showToast(result.message || "All scenarios stopped; sensors cleared.");
+        await refreshStatus();
+      } catch (error) {
+        showToast(error.message, true);
+      }
+    });
+
+    document.querySelectorAll("[data-scenario]").forEach((button) => {
+      button.addEventListener("click", () => activateScenario(button.dataset.scenario));
+    });
+
+    ["fire", "earthquake", "power"].forEach((prefix) => {
+      $(`${prefix}DurationMode`).addEventListener("change", () => setDurationControl(prefix));
+      setDurationControl(prefix);
+    });
+
+    refreshStatus();
+    setInterval(refreshStatus, 1500);
+  </script>
+<script type="module">
+  // Guarda del lado del cliente: sin sesión de Firebase vuelve a /login.
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  const cfg = await (await fetch("/auth/config")).json();
+  if (!cfg.configurado) { location.replace("/login"); }
+  else {
+    onAuthStateChanged(getAuth(initializeApp(cfg)), (user) => { if (!user) location.replace("/login"); });
+  }
+</script>
+</body>
+</html>

@@ -32,7 +32,6 @@ def configuracion_publica() -> dict[str, Any]:
         "appId": ajustes.firebase_app_id,
         "messagingSenderId": ajustes.firebase_messaging_sender_id,
         "storageBucket": ajustes.firebase_storage_bucket,
-        "panelUrl": ajustes.panel_url,
     }
 
 

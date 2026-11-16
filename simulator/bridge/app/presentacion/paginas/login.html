@@ -109,7 +109,7 @@
         const datos = await verificarEnBackend(user);
         pintarSesion(user, datos);
         mostrar("Sesión iniciada. Abriendo el panel…", "ok");
-        window.location.href = cfg.panelUrl;
+        window.location.href = "/panel";
       } catch (e) {
         pintarSesion(user, null);
         mostrar(e.message, "err");

@@ -55,3 +55,18 @@ def test_me_con_token_malformado_responde_401(cliente, firebase):
     respuesta = cliente.get("/auth/me", headers={"Authorization": "Bearer no-es-un-jwt"})
     assert respuesta.status_code == 401
     assert respuesta.json()["detail"] == "Invalid or expired token"
+
+
+def test_panel_se_sirve_dentro_del_monolito(cliente):
+    respuesta = cliente.get("/panel")
+    assert respuesta.status_code == 200
+    assert respuesta.headers["content-type"].startswith("text/html")
+    assert "<title>" in respuesta.text
+    assert "</html>" in respuesta.text
+
+
+def test_panel_enlaza_styles_css_y_se_sirve(cliente):
+    assert 'href="/static/styles.css"' in cliente.get("/panel").text
+    respuesta = cliente.get("/static/styles.css")
+    assert respuesta.status_code == 200
+    assert respuesta.headers["content-type"].startswith("text/css")
