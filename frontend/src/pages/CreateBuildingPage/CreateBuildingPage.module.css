@@ -1,0 +1,53 @@
+/* Dos columnas: formulario (izquierda) e icono de edificio (derecha). En pantallas angostas se apilan. */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 32px;
+  width: 100%;
+  min-width: 0;
+  padding-block: 8px 24px;
+}
+
+/* El formulario (o el mensaje de éxito) ocupa todo el alto y ancho de su columna, con el contenido
+   centrado en vertical. align-content: center conserva la altura natural de las filas, así los botones no se estiran. */
+.form {
+  display: grid;
+  min-width: 0;
+}
+
+.form > * {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  align-content: center;
+}
+
+.visual {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 24px;
+}
+
+.icon {
+  width: 100%;
+  height: auto;
+  color: var(--accent-text);
+  opacity: 0.85;
+}
+
+@media (max-width: 860px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .visual {
+    order: -1;
+    padding: 0;
+  }
+
+  .icon {
+    width: min(220px, 60%);
+  }
+}

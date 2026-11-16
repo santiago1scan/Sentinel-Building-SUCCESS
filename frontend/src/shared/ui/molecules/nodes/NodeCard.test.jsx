@@ -1,6 +1,5 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { vi } from "vitest";
 import NodeCard from "./NodeCard";
 
 const node = { node_id: 1, code: "N-01", name: "Sensor piso 2", zone_id: 4, ip_address: "10.0.0.5" };
@@ -16,6 +15,16 @@ describe("NodeCard", () => {
     expect(screen.getByText("N-01")).toBeTruthy();
     expect(screen.getByText("10.0.0.5")).toBeTruthy();
     expect(container.querySelector("article").getAttribute("data-status")).toBe("connected");
+  });
+
+  it("sin IP muestra 'Sin IP'", () => {
+    render(<NodeCard node={{ ...node, ip_address: null }} status="off" />);
+    expect(screen.getByText("Sin IP")).toBeTruthy();
+  });
+
+  it("sin zona muestra un guion", () => {
+    render(<NodeCard node={{ ...node, zone_id: null }} status="off" />);
+    expect(screen.getByText("—")).toBeTruthy();
   });
 
   it("lista cada alerta con su tipo y permite marcarla como atendida", () => {
@@ -50,10 +59,5 @@ describe("NodeCard", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Guardando…" }).disabled).toBe(true);
-  });
-
-  it("sin IP muestra 'Sin IP'", () => {
-    render(<NodeCard node={{ ...node, ip_address: null }} status="off" />);
-    expect(screen.getByText("Sin IP")).toBeTruthy();
   });
 });

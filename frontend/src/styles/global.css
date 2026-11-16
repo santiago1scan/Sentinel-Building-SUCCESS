@@ -1,3 +1,6 @@
+/* Tailwind: utilidades y reset base. Va primero para que los módulos CSS puedan sobrescribirlo. */
+@import "tailwindcss";
+
 /*
  * Estilos globales: base del documento y utilidades compartidas por las pantallas.
  * Los estilos de cada componente viven en su propio archivo *.module.css.

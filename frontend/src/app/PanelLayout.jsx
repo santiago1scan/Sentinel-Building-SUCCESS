@@ -6,6 +6,10 @@ const pageInfo = {
     title: "Panel principal",
     subtitle: "Monitoreo y coordinación de emergencias",
   },
+  "/panel/builders/create": {
+    title: "Nuevo edificio",
+    subtitle: "Alta de un edificio para el monitoreo",
+  },
   "/edificios": {
     title: "Edificios",
     subtitle: "Administración de edificios registrados",

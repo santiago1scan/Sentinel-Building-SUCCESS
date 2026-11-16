@@ -1,0 +1,60 @@
+.form {
+  display: grid;
+  gap: 24px;
+  width: min(560px, 100%);
+  padding: clamp(20px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  display: grid;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.fields {
+  display: grid;
+  gap: 18px;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--status-alert-bg);
+  color: var(--status-alert-text);
+  font-weight: bold;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 480px) {
+  .footer > * {
+    flex: 1 1 100%;
+  }
+}

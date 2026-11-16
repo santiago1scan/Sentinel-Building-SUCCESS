@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { nodesService } from "../../shared/services/nodesService";
 import { alertsService } from "../../shared/services/alertsService";
-import TextInput from "../../shared/ui/atoms/TextInput";
-import SelectInput from "../../shared/ui/atoms/SelectInput";
-import NodeCard from "./components/NodeCard";
-import { NODE_STATUS, deriveNodeStatus } from "./nodeStatus";
+import TextInput from "../../shared/ui/atoms/inputs/TextInput";
+import SelectInput from "../../shared/ui/atoms/selects/SelectInput";
+import NodeCard from "../../shared/ui/molecules/nodes/NodeCard";
+import { NODE_STATUS, deriveNodeStatus } from "../../shared/ui/atoms/nodes/nodeStatus";
 import styles from "./NodesPage.module.css";
 
 /** Solo se muestran los nodos con alertas: estos dos estados. */

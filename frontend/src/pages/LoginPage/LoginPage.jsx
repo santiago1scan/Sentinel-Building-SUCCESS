@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import PublicHeader from "../../shared/ui/organisms/PublicHeader";
-import { authService } from "./services/authService";
+import { authService } from "../../features/login/services/authService";
 import styles from "./LoginPage.module.css";
 
 function errorMessage(error) {

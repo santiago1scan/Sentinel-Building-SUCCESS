@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 
-vi.mock("./services/authService", () => ({
+vi.mock("../../features/login/services/authService", () => ({
   authService: { signInWithGoogle: vi.fn() },
 }));
 
-import { authService } from "./services/authService";
+import { authService } from "../../features/login/services/authService";
 import LoginPage from "./LoginPage";
 
 const BUTTON = "Continuar con Google";

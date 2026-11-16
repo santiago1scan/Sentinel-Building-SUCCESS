@@ -2,9 +2,10 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import ProtectedRoute from "./app/ProtectedRoute";
 import PanelLayout from "./app/PanelLayout";
-import LoginPage from "./features/login/LoginPage";
-import HomePage from "./features/home/HomePage";
-import NodesPage from "./features/nodes/NodesPage";
+import LoginPage from "./pages/LoginPage/LoginPage";
+import HomePage from "./pages/HomePage/HomePage";
+import PanelPage from "./pages/PanelPage/PanelPage";
+import CreateBuildingPage from "./pages/CreateBuildingPage/CreateBuildingPage";
 
 /** Marcador para las secciones que aún no tienen pantalla. */
 function ModuleInProgress({ name }) {
@@ -30,7 +31,8 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="panel" element={<NodesPage />} />
+          <Route path="panel" element={<PanelPage />} />
+          <Route path="panel/builders/create" element={<CreateBuildingPage />} />
           <Route path="edificios" element={<ModuleInProgress name="Edificios" />} />
           <Route path="zonas" element={<ModuleInProgress name="Zonas" />} />
           <Route path="nodos" element={<ModuleInProgress name="Nodos sensores" />} />

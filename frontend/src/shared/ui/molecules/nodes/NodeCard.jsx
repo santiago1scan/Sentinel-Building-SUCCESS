@@ -1,26 +1,15 @@
-import { NODE_STATUS } from "../nodeStatus";
+import NodeStatusBadge from "../../atoms/nodes/NodeStatusBadge";
 import styles from "./NodeCard.module.css";
 
-/** Píldora de estado: ícono + etiqueta, legible sin depender del color. */
-export function NodeStatusBadge({ status }) {
-  const info = NODE_STATUS[status];
-  return (
-    <span className={styles.badge}>
-      <span aria-hidden="true">{info.icon}</span>
-      {info.label}
-    </span>
-  );
-}
-
-/**
- * Tarjeta de un nodo sensor. Su color de fondo y de borde sale del estado,
- * para identificarlo de un vistazo.
- */
 const TYPE_LABEL = {
   out_of_range: "Fuera de rango",
   technical: "Aviso técnico",
 };
 
+/**
+ * Tarjeta de un nodo sensor. Su color de fondo y de borde sale del estado,
+ * para identificarlo de un vistazo. Lista sus alertas abiertas con acción para atenderlas.
+ */
 function NodeCard({ node, status, openAlerts = [], handling = {}, onHandle = () => {} }) {
   return (
     <article className={styles.card} data-status={status}>
