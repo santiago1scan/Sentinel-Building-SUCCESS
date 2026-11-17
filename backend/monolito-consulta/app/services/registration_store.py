@@ -8,7 +8,7 @@ import hashlib
 import hmac
 import secrets
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Callable
@@ -34,6 +34,9 @@ class Registration:
     expires_at: datetime
     status: RegistrationStatus = RegistrationStatus.PENDING
     node_id: int | None = None
+    # Sensores pedidos (dicts con code y sensor_type_id) y los ids creados al aprobar.
+    sensors: list[dict] = field(default_factory=list)
+    sensor_ids: list[int] = field(default_factory=list)
 
 
 def hash_secret(secret: str) -> str:
@@ -61,7 +64,9 @@ class RegistrationStore:
             if item.status in (RegistrationStatus.PENDING, RegistrationStatus.APPROVED) and now >= item.expires_at:
                 item.status = RegistrationStatus.EXPIRED
 
-    def create(self, code: str, name: str, building_id: int, requested_zone_id: int) -> tuple[Registration, str]:
+    def create(
+        self, code: str, name: str, building_id: int, requested_zone_id: int, sensors: list[dict] | None = None,
+    ) -> tuple[Registration, str]:
         """Crea la solicitud. Devuelve la solicitud y el secreto de sondeo, que solo se muestra una vez."""
         self._expire()
         secret = secrets.token_urlsafe(32)
@@ -69,6 +74,7 @@ class RegistrationStore:
         item = Registration(
             id=uuid.uuid4().hex, code=code, name=name, building_id=building_id, requested_zone_id=requested_zone_id,
             poll_secret_hash=hash_secret(secret), created_at=now, expires_at=now + self.ttl,
+            sensors=list(sensors or []),
         )
         self._items[item.id] = item
         self.touch()

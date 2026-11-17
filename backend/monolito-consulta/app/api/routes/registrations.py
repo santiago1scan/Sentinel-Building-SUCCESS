@@ -26,7 +26,7 @@ router = APIRouter(prefix="/registrations", tags=["registrations"])
 def _pending_read(item: Registration) -> PendingRegistrationRead:
     return PendingRegistrationRead(
         registration_id=item.id, code=item.code, name=item.name,
-        building_id=item.building_id, zone_id=item.requested_zone_id,
+        building_id=item.building_id, zone_id=item.requested_zone_id, sensors=item.sensors,
         status=item.status.value, created_at=item.created_at, expires_at=item.expires_at,
     )
 
@@ -92,7 +92,7 @@ async def approve_registration(
     """Aprueba la solicitud en una zona. Crea el nodo; el token se entrega cuando el bridge lo recoge."""
     item = await service.approve(registration_id, body.zone_id)
     return ApprovedRegistrationRead(
-        registration_id=item.id, status=item.status.value, node_id=item.node_id, zone_id=item.zone_id,
+        registration_id=item.id, status=item.status.value, node_id=item.node_id, zone_id=item.zone_id, sensor_ids=item.sensor_ids,
     )
 
 

@@ -12,6 +12,8 @@ from app.core.exceptions import ConflictError, GoneError, NotFoundError, Service
 from app.core.security import generate_node_token, hash_token
 from app.repositories.building_repository import BuildingRepository
 from app.repositories.node_repository import NodeRepository
+from app.repositories.sensor_repository import SensorRepository
+from app.repositories.sensor_type_repository import SensorTypeRepository
 from app.repositories.zone_repository import ZoneRepository
 from app.schemas.registration import DeliveredNodeRead, RegistrationRequest
 from app.services.registration_store import Registration, RegistrationStatus, RegistrationStore
@@ -25,12 +27,16 @@ class RegistrationService:
         zones: ZoneRepository,
         broker: BrokerAdmin | None,
         buildings: BuildingRepository,
+        sensors: SensorRepository | None = None,
+        sensor_types: SensorTypeRepository | None = None,
     ) -> None:
         self.store = store
         self.nodes = nodes
         self.zones = zones
         self.broker = broker
         self.buildings = buildings
+        self.sensors = sensors
+        self.sensor_types = sensor_types
 
     def _require(self, registration_id: str) -> Registration:
         item = self.store.get(registration_id)
@@ -50,7 +56,21 @@ class RegistrationService:
             raise NotFoundError(f"La zona {body.zone_id} no existe")
         if zone.building_id != body.building_id:
             raise UnprocessableEntityError("La zona no pertenece al edificio indicado")
-        return self.store.create(body.code, body.name, body.building_id, body.zone_id)
+        sensors = [sensor.model_dump() for sensor in body.sensors]
+        await self._check_sensors(sensors)
+        return self.store.create(body.code, body.name, body.building_id, body.zone_id, sensors)
+
+    async def _check_sensors(self, sensors: list[dict]) -> None:
+        """Los códigos no pueden existir ya y los tipos deben existir."""
+        if not sensors:
+            return
+        if self.sensors is None or self.sensor_types is None:
+            raise ServiceUnavailableError("El registro de sensores no está disponible")
+        for sensor in sensors:
+            if await self.sensors.get_by_code(sensor["code"]) is not None:
+                raise ConflictError(f"Ya existe un sensor con código {sensor['code']}")
+            if await self.sensor_types.get(sensor["sensor_type_id"]) is None:
+                raise UnprocessableEntityError(f"El tipo de sensor {sensor['sensor_type_id']} no existe")
 
     def list_pending(self) -> list[Registration]:
         return self.store.pending()
@@ -68,9 +88,15 @@ class RegistrationService:
                 raise UnprocessableEntityError("La zona no pertenece al edificio de la solicitud")
             if await self.nodes.get_by_code(item.code) is not None:
                 raise ConflictError(f"Ya existe un nodo con código {item.code}")
+            # Se revisan los sensores antes de crear nada: si algo falla, no queda un nodo a medias.
+            await self._check_sensors(item.sensors)
             node = await self.nodes.create({
                 "code": item.code, "name": item.name, "zone_id": target, "token_hash": None,
             })
+            item.sensor_ids = []
+            for sensor in item.sensors:
+                created = await self.sensors.create({**sensor, "primary_node_id": node.node_id})
+                item.sensor_ids.append(created.sensor_id)
             item.status = RegistrationStatus.APPROVED
             item.zone_id = target
             item.node_id = node.node_id
