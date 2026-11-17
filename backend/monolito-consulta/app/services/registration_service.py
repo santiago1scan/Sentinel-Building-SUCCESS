@@ -8,8 +8,9 @@ Reglas:
 import asyncio
 
 from app.core.broker_admin import BrokerAdmin, BrokerAdminError
-from app.core.exceptions import ConflictError, GoneError, NotFoundError, ServiceUnavailableError
+from app.core.exceptions import ConflictError, GoneError, NotFoundError, ServiceUnavailableError, UnprocessableEntityError
 from app.core.security import generate_node_token, hash_token
+from app.repositories.building_repository import BuildingRepository
 from app.repositories.node_repository import NodeRepository
 from app.repositories.zone_repository import ZoneRepository
 from app.schemas.registration import DeliveredNodeRead, RegistrationRequest
@@ -23,11 +24,13 @@ class RegistrationService:
         nodes: NodeRepository,
         zones: ZoneRepository,
         broker: BrokerAdmin | None,
+        buildings: BuildingRepository,
     ) -> None:
         self.store = store
         self.nodes = nodes
         self.zones = zones
         self.broker = broker
+        self.buildings = buildings
 
     def _require(self, registration_id: str) -> Registration:
         item = self.store.get(registration_id)
@@ -40,25 +43,36 @@ class RegistrationService:
             raise ConflictError(f"Ya existe un nodo con código {body.code}")
         if self.store.has_open_request_for(body.code):
             raise ConflictError(f"Ya hay una solicitud abierta para {body.code}")
-        return self.store.create(body.code, body.name, body.building_code, body.zone_id)
+        if await self.buildings.get(body.building_id) is None:
+            raise NotFoundError(f"El edificio {body.building_id} no existe")
+        zone = await self.zones.get(body.zone_id)
+        if zone is None:
+            raise NotFoundError(f"La zona {body.zone_id} no existe")
+        if zone.building_id != body.building_id:
+            raise UnprocessableEntityError("La zona no pertenece al edificio indicado")
+        return self.store.create(body.code, body.name, body.building_id, body.zone_id)
 
     def list_pending(self) -> list[Registration]:
         return self.store.pending()
 
-    async def approve(self, registration_id: str, zone_id: int) -> Registration:
+    async def approve(self, registration_id: str, zone_id: int | None = None) -> Registration:
         async with self.store.lock:
             item = self._require(registration_id)
             if item.status != RegistrationStatus.PENDING:
                 raise ConflictError(f"La solicitud está {item.status.value}")
-            if await self.zones.get(zone_id) is None:
-                raise NotFoundError(f"La zona {zone_id} no existe")
+            target = zone_id if zone_id is not None else item.requested_zone_id
+            zone = await self.zones.get(target)
+            if zone is None:
+                raise NotFoundError(f"La zona {target} no existe")
+            if zone.building_id != item.building_id:
+                raise UnprocessableEntityError("La zona no pertenece al edificio de la solicitud")
             if await self.nodes.get_by_code(item.code) is not None:
                 raise ConflictError(f"Ya existe un nodo con código {item.code}")
             node = await self.nodes.create({
-                "code": item.code, "name": item.name, "zone_id": zone_id, "token_hash": None,
+                "code": item.code, "name": item.name, "zone_id": target, "token_hash": None,
             })
             item.status = RegistrationStatus.APPROVED
-            item.zone_id = zone_id
+            item.zone_id = target
             item.node_id = node.node_id
             self.store.renew(item)
             self.store.touch()

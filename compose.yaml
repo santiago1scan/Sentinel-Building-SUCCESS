@@ -111,8 +111,9 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8089
 
   bridge:
+    # Monolito del bridge (FastAPI, 3 capas). Equivale a bridge_service.py con la misma lógica.
     build:
-      context: ./simulator
+      context: ./simulator/bridge
       dockerfile: Dockerfile
     container_name: sentinel-bridge
     restart: unless-stopped
@@ -126,36 +127,57 @@ services:
     environment:
       # Tokens por nodo: "NODE-FLOOR-1=token1,NODE-FLOOR-2=token2" (definir en .env de la raíz)
       SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
+      SENTINEL_DATA_DIR: /app/data_bridge
+      SENTINEL_BUILDING_CODE: SB-001
+      # Único nodo de este bridge: las gráficas de la página de inicio muestran sus lecturas.
+      SENTINEL_NODE_CODE: NODE-FLOOR-1
+      # Backend de consulta: ahí se registra el nodo desde la página /perfil.
+      SENTINEL_CONSULTA_URL: http://monolito-consulta:8089
+      SENTINEL_INTERVAL: "30"
+      SENTINEL_API_URL: http://monolito-escucha:8089
+      SENTINEL_API_PATH: /telemetry/aggregate
+      # Broker dynamic-security: solo TLS en 8883. Cada nodo se autentica con su token.
+      SENTINEL_MQTT_HOST: mosquitto
+      SENTINEL_MQTT_PORT: "8883"
+      SENTINEL_MQTT_TLS: "true"
+      SENTINEL_MQTT_CA_FILE: /certs/ca.crt
+      # Login de Firebase de la página /login (valores públicos del proyecto; ver .env.example).
+      SENTINEL_FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
+      SENTINEL_FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+      SENTINEL_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      SENTINEL_FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
+      SENTINEL_FIREBASE_MESSAGING_SENDER_ID: ${FIREBASE_MESSAGING_SENDER_ID:-}
+      SENTINEL_FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-}
+      SENTINEL_FIREBASE_ADMIN_EMAILS: ${FIREBASE_ADMIN_EMAILS:-}
     depends_on:
       monolito-escucha:
         condition: service_started
       mosquitto:
         condition: service_healthy
-    command: >
-      python bridge/bridge_service.py
-      --listen-host 0.0.0.0 --listen-port 8766 --data-dir /app/data_bridge
-      --building-code SB-001 --interval 30
-      --api-url http://monolito-escucha:8089 --api-path /telemetry/aggregate
-      --mqtt-host mosquitto --mqtt-port 8883
-      --mqtt-tls --mqtt-ca-file /certs/ca.crt
 
-  mqtt-sensor-simulator:
+  # Simulador de sensores (monolito FastAPI en simulator/simulator). Usa el mismo Dockerfile
+  # del simulador. Su única conexión es el bridge. Panel en http://localhost:8790
+  simulator:
     build:
       context: ./simulator
       dockerfile: Dockerfile
-    container_name: sentinel-mqtt-simulator
+    container_name: sentinel-simulator
     restart: unless-stopped
+    ports:
+      - "8790:8790"
     networks:
       - sentinel-net
-    volumes:
-      - simulator_data:/app/data_sensor_simulator
-      - ./simulator/run_simulator.sh:/app/run_simulator.sh:ro
     depends_on:
       bridge:
         condition: service_started
-    command: bash /app/run_simulator.sh
+    command: uvicorn app.main:app --app-dir /app/simulator --host 0.0.0.0 --port 8790
     environment:
-      - PYTHONUNBUFFERED=1
+      PYTHONUNBUFFERED: "1"
+      SENTINEL_BRIDGE_URL: http://bridge:8766
+      SENTINEL_INTERVAL: "30"
+      SENTINEL_SIM_NODES: NODE-FLOOR-1,NODE-FLOOR-2
+      # Arranca el ciclo de lecturas solo, como el simulador anterior.
+      SENTINEL_AUTOSTART: "true"
 
   # Pruebas de integración: simulador → bridge → escucha, verificadas con consulta.
   # No se levanta con `up`. Ejecutar con:
@@ -193,7 +215,6 @@ services:
 volumes:
   postgres_data:
   bridge_data:
-  simulator_data:
 
 networks:
   sentinel-net:

@@ -65,8 +65,8 @@ El administrador debe aprobar sobre una zona existente (`zone_id`).
 {
   "code": "NODE-001",
   "name": "Nodo sala de servidores",
-  "building_code": "SB-001",
-  "zone_id": 1
+  "building_id": 1,
+  "zone_id": 3
 }
 ```
 
@@ -74,8 +74,8 @@ El administrador debe aprobar sobre una zona existente (`zone_id`).
 |-----------------|--------|---------------|
 | `code`          | string | 1–100 chars, único entre nodos |
 | `name`          | string | 1–150 chars   |
-| `building_code` | string | 1–50 chars    |
-| `zone_id`       | int    | ID de la zona donde se agregará el nodo |
+| `building_id`   | entero | id de `building` en la base; debe existir (si no, `404`) |
+| `zone_id`       | entero | id de `zone` en la base; debe existir y pertenecer a `building_id` (si no, `404` o `422`) |
 
 **Respuesta `202 Accepted`**
 ```json
@@ -104,8 +104,8 @@ Errores: `409` (ya existe un nodo con ese `code`, o ya hay una solicitud abierta
     "registration_id": "3f2a9c1e7b4d4e0f9a6b5c8d1e2f3a4b",
     "code": "NODE-001",
     "name": "Nodo sala de servidores",
-    "building_code": "SB-001",
-    "zone_id": 1,
+    "building_id": 1,
+    "zone_id": 3,
     "status": "pending",
     "created_at": "2026-11-13T15:00:00Z",
     "expires_at": "2026-11-13T15:05:00Z"
@@ -157,8 +157,8 @@ Errores: `404` (solicitud o zona inexistente), `409` (la solicitud ya no está `
   "registration_id": "3f2a9c1e7b4d4e0f9a6b5c8d1e2f3a4b",
   "code": "NODE-001",
   "name": "Nodo sala de servidores",
-  "building_code": "SB-001",
-  "zone_id": 1,
+  "building_id": 1,
+  "zone_id": 3,
   "status": "rejected",
   "created_at": "2026-11-13T15:00:00Z",
   "expires_at": "2026-11-13T15:05:00Z"

@@ -26,7 +26,7 @@ router = APIRouter(prefix="/registrations", tags=["registrations"])
 def _pending_read(item: Registration) -> PendingRegistrationRead:
     return PendingRegistrationRead(
         registration_id=item.id, code=item.code, name=item.name,
-        building_code=item.building_code, zone_id=item.zone_id,
+        building_id=item.building_id, zone_id=item.requested_zone_id,
         status=item.status.value, created_at=item.created_at, expires_at=item.expires_at,
     )
 

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101511">
+  <title>{% block titulo %}Sentinel Building{% endblock %}</title>
+  {% block hoja_base %}<link rel="stylesheet" href="/static/styles.css">{% endblock %}
+  {% block estilos %}{% endblock %}
+</head>
+<body>
+  {% block cuerpo %}
+  <main class="page">
+    {% block contenido %}{% endblock %}
+  </main>
+  {% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,16 @@
+    :root { color-scheme: light dark; --fg: #1d1f23; --bg: #f5f6f8; --card: #fff; --muted: #6b7280; --accent: #2563eb; --err: #b91c1c; --ok: #15803d; }
+    @media (prefers-color-scheme: dark) { :root { --fg: #e5e7eb; --bg: #111418; --card: #1b1f25; --muted: #9ca3af; --accent: #60a5fa; --err: #f87171; --ok: #4ade80; } }
+    body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+    main { max-width: 420px; margin: 10vh auto; padding: 0 16px; }
+    .card { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    h1 { font-size: 1.25rem; margin: 0 0 4px; }
+    p.sub { margin: 0 0 20px; color: var(--muted); font-size: .9rem; }
+    button { width: 100%; padding: 10px 14px; border: 0; border-radius: 8px; font-size: 1rem; cursor: pointer; background: var(--accent); color: #fff; }
+    button.secundario { background: transparent; color: var(--accent); border: 1px solid var(--accent); margin-top: 12px; }
+    button:disabled { opacity: .6; cursor: default; }
+    #estado { margin-top: 16px; font-size: .95rem; min-height: 1.2em; }
+    .err { color: var(--err); } .ok { color: var(--ok); }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 16px 0 0; font-size: .92rem; }
+    dt { color: var(--muted); } dd { margin: 0; word-break: break-all; }
+    [hidden] { display: none !important; }
+p.sub.volver { margin: 16px 0 0; }
