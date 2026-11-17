@@ -36,3 +36,14 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+.nodeLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 10px;
+}
+
+.nodeLink:hover > * {
+  border-color: var(--accent-text);
+}
