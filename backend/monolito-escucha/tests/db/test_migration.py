@@ -94,7 +94,7 @@ def _catalog() -> dict[str, dict[str, tuple]]:
     return catalog
 
 
-def test_sensor_catalog_is_seeded_with_the_excel_ranges():
+def test_sensor_catalog_is_seeded_with_a_range_for_all_18_metrics():
     """Case of 16-Nov-2026: sensor_type and sensor_metric were empty, so no sensor could be registered."""
     reset_schema()
     catalog = _catalog()
@@ -108,11 +108,24 @@ def test_sensor_catalog_is_seeded_with_the_excel_ranges():
     assert catalog["ADXL355"]["x_g"] == (-0.01, 0.01, True)
     assert catalog["ADXL355"]["y_g"] == (-0.01, 0.01, True)
     assert catalog["ADXL355"]["z_g"] == (0.99, 1.01, True)
-    # Sea-level pressure from the Excel does not apply in Popayan: no normal range.
-    assert catalog["BME688"]["pressure_hpa"][:2] == (None, None)
-    with_range = [code for metrics in catalog.values() for code, (low, high, _) in metrics.items()
-                  if low is not None or high is not None]
-    assert len(with_range) == 6
+    # The 9 team ranges of 16-Nov-2026 (thermal camera, gases, vibration, power).
+    assert catalog["ADXL355"]["rms_g"] == (0.0002, 0.0071, True)
+    assert catalog["ADXL355"]["frequency_hz"] == (3, 4, True)
+    assert catalog["AMG8833"]["maximum_c"] == (17, 35, True)
+    assert catalog["AMG8833"]["average_c"] == (17, 26, True)
+    assert catalog["AMG8833"]["hot_pixels"] == (0, 0, True)
+    assert catalog["BME688"]["tvoc_ppb"] == (300, 500, False)  # 0.3-0.5 ppm; below is cleaner air, not an alarm
+    assert catalog["INA219"]["bus_voltage_v"] == (11, 12, True)
+    assert catalog["INA219"]["current_ma"] == (300, 500, True)
+    assert catalog["INA219"]["power_mw"] == (3300, 6000, True)
+    # Excel sea-level pressure taken to Popayan's altitude (~825 hPa), with a margin (17-Nov-2026).
+    assert catalog["BME688"]["pressure_hpa"] == (815, 835, True)
+    # 0/1 flags: normal is 0 (on mains, battery fine).
+    assert catalog["INA219"]["power_source"] == (0, 0, True)
+    assert catalog["INA219"]["battery_low"] == (0, 0, True)
+    without_range = [code for metrics in catalog.values() for code, (low, high, _) in metrics.items()
+                     if low is None and high is None]
+    assert without_range == []
 
 
 def test_sensor_catalog_seed_is_idempotent_and_downgrade_keeps_what_is_in_use():

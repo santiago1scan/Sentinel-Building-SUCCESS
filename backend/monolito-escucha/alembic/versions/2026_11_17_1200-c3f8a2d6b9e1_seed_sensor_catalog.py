@@ -7,8 +7,12 @@ Without these rows nobody can register sensors: sensor_type and sensor_metric we
   temperature_c__avg|max|min, stored as aggregations of that same metric in reading.aggregation). As of 17-Nov the
   repo bridge still sends temperature_avg_c, iaq_avg, voltage_avg_v...: until it changes, those land in new metrics
   without a range (pending with the bridge owner).
-- Normal ranges only where the Excel gives one (sheet Umbrales_Normales). Pressure has no normal range: the Excel is
-  at sea level and Popayan reads ~825 hPa. Variables without a range are stored but never raise an alert.
+- Normal ranges: 6 from the Excel (sheet Umbrales_Normales) and 9 from the team (thermal camera, TVOC, vibration and
+  power; 16-Nov-2026). All 18 have a range since 17-Nov:
+  - Pressure 815-835 hPa: the Excel's sea-level range (1013.7-1024) taken to Popayan's ~1,740 m (x0.811 =
+    822-831 hPa) with a margin. An estimate until it is measured on site.
+  - power_source and battery_low are 0/1 flags: normal is 0, physical 0-1. They raise their own technical notice
+    (ON_BATTERY_POWER, BATTERY_LOW) and are never judged against the range, so the range only documents them.
 - Values match app/analytics/ranges.py DEFAULT_RANGES, so a metric created here or on first sight is the same.
 
 Idempotent: rows that already exist (same type name, or same type + metric code) are left as they are.
@@ -44,23 +48,24 @@ METRICS = [
     ("ADXL355", "x_g", "Aceleración eje X", "g", -0.01, 0.01, None, None, True),
     ("ADXL355", "y_g", "Aceleración eje Y", "g", -0.01, 0.01, None, None, True),
     ("ADXL355", "z_g", "Aceleración eje Z", "g", 0.99, 1.01, None, None, True),
-    ("ADXL355", "rms_g", "Vibración RMS", "g", None, None, None, None, True),
-    ("ADXL355", "frequency_hz", "Frecuencia de vibración", "Hz", None, None, None, None, True),
-    ("AMG8833", "maximum_c", "Temperatura máxima de la imagen", "°C", None, None, None, None, True),
-    ("AMG8833", "average_c", "Temperatura promedio de la imagen", "°C", None, None, None, None, True),
-    ("AMG8833", "hot_pixels", "Píxeles calientes", "píxeles", None, None, None, None, True),
+    ("ADXL355", "rms_g", "Vibración RMS", "g", 0.0002, 0.0071, None, None, True),
+    ("ADXL355", "frequency_hz", "Frecuencia de vibración", "Hz", 3, 4, None, None, True),
+    ("AMG8833", "maximum_c", "Temperatura máxima de la imagen", "°C", 17, 35, None, None, True),
+    ("AMG8833", "average_c", "Temperatura promedio de la imagen", "°C", 17, 26, None, None, True),
+    ("AMG8833", "hot_pixels", "Píxeles calientes", "píxeles", 0, 0, None, None, True),
     ("BME688", "temperature_c", "Temperatura", "°C", 10, 31, -40, 85, True),
     ("BME688", "humidity_percent", "Humedad relativa", "%", 72.78, 94.48, 0, 100, True),
-    ("BME688", "pressure_hpa", "Presión", "hPa", None, None, 300, 1100, True),
+    ("BME688", "pressure_hpa", "Presión", "hPa", 815, 835, 300, 1100, True),
     # IAQ below 51 is "Excellent" air (Bosch table): out of range, but not an alarm.
     ("BME688", "iaq_index", "Calidad del aire (IAQ)", "IAQ", 51, 100, 0, 500, False),
-    ("BME688", "tvoc_ppb", "Compuestos orgánicos volátiles (TVOC)", "ppb", None, None, None, None, True),
-    ("INA219", "bus_voltage_v", "Voltaje", "V", None, None, None, None, True),
-    ("INA219", "current_ma", "Corriente", "mA", None, None, None, None, True),
-    ("INA219", "power_mw", "Potencia", "mW", None, None, None, None, True),
-    # Flags stored as 0/1: 1 = the node runs on battery / the battery is low.
-    ("INA219", "power_source", "Funciona con batería", None, None, None, None, None, True),
-    ("INA219", "battery_low", "Batería baja", None, None, None, None, None, True),
+    # TVOC: team range 0.3-0.5 ppm, stored in ppb as the sensor sends it; below 0.3 ppm is cleaner air, not an alarm.
+    ("BME688", "tvoc_ppb", "Compuestos orgánicos volátiles (TVOC)", "ppb", 300, 500, None, None, False),
+    ("INA219", "bus_voltage_v", "Voltaje", "V", 11, 12, None, None, True),
+    ("INA219", "current_ma", "Corriente", "mA", 300, 500, None, None, True),
+    ("INA219", "power_mw", "Potencia", "mW", 3300, 6000, None, None, True),
+    # Flags stored as 0/1: 1 = the node runs on battery / the battery is low. Normal = 0.
+    ("INA219", "power_source", "Funciona con batería", None, 0, 0, 0, 1, True),
+    ("INA219", "battery_low", "Batería baja", None, 0, 0, 0, 1, True),
 ]
 
 TYPE_NAMES = tuple(name for name, _ in SENSOR_TYPES)

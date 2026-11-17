@@ -48,8 +48,9 @@ async def test_list_brings_each_type_with_its_metrics_and_ranges(api):
     assert (float(bme["temperature_c"]["normal_minimum"]), float(bme["temperature_c"]["normal_maximum"])) == (10, 31)
     assert bme["temperature_c"]["unit"] == "°C"
     assert bme["iaq_index"]["alarm_below"] is False
-    assert bme["pressure_hpa"]["normal_minimum"] is None and bme["pressure_hpa"]["normal_maximum"] is None
-    assert bme["tvoc_ppb"]["normal_minimum"] is None
+    assert (float(bme["pressure_hpa"]["normal_minimum"]), float(bme["pressure_hpa"]["normal_maximum"])) == (815, 835)
+    assert (float(bme["tvoc_ppb"]["normal_minimum"]), float(bme["tvoc_ppb"]["normal_maximum"])) == (300, 500)
+    assert bme["tvoc_ppb"]["alarm_below"] is False
 
 
 async def test_one_type_brings_its_metrics_and_unknown_is_404(api):
