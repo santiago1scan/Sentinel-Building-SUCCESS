@@ -16,6 +16,13 @@
   overflow-wrap: anywhere;
 }
 
+.id {
+  margin: -6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: bold;
+}
+
 .nodes {
   display: grid;
   gap: 8px;
@@ -28,4 +35,15 @@
   margin: 0;
   color: var(--text-muted);
   font-style: italic;
+}
+
+.nodeLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 10px;
+}
+
+.nodeLink:hover > * {
+  border-color: var(--accent-text);
 }

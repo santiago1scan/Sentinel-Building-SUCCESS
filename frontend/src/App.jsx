@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage/LoginPage";
 import HomePage from "./pages/HomePage/HomePage";
 import PanelPage from "./pages/PanelPage/PanelPage";
 import CreateBuildingPage from "./pages/CreateBuildingPage/CreateBuildingPage";
+import NodeDetailPage from "./pages/NodeDetailPage/NodeDetailPage";
 import BuildingDetailPage from "./pages/BuildingDetailPage/BuildingDetailPage";
 
 /** Marcador para las secciones que aún no tienen pantalla. */
@@ -35,6 +36,7 @@ function App() {
           <Route path="panel" element={<PanelPage />} />
           <Route path="panel/builders/create" element={<CreateBuildingPage />} />
           <Route path="panel/builders/:buildingId" element={<BuildingDetailPage />} />
+          <Route path="panel/nodes/:nodeId" element={<NodeDetailPage />} />
           <Route path="edificios" element={<ModuleInProgress name="Edificios" />} />
           <Route path="zonas" element={<ModuleInProgress name="Zonas" />} />
           <Route path="nodos" element={<ModuleInProgress name="Nodos sensores" />} />

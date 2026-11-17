@@ -33,7 +33,6 @@ class Registration:
     created_at: datetime
     expires_at: datetime
     status: RegistrationStatus = RegistrationStatus.PENDING
-    zone_id: int | None = None
     node_id: int | None = None
     # Sensores pedidos (dicts con code y sensor_type_id) y los ids creados al aprobar.
     sensors: list[dict] = field(default_factory=list)
