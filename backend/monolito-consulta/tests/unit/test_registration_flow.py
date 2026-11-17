@@ -292,3 +292,90 @@ def test_upsert_creates_then_replaces_password_when_client_exists():
     stub.upsert_node("NODE-FLOOR-3", "tok")
 
     assert stub.batches == [["createRole", "createClient"], ["setClientPassword"]]
+
+
+# --- Sensores del nodo ---
+
+class FakeSensors:
+    def __init__(self, existing_codes=()):
+        self.existing = set(existing_codes)
+        self.created = []
+        self.next_id = 500
+
+    async def get_by_code(self, code):
+        return SimpleNamespace(code=code) if code in self.existing else None
+
+    async def create(self, data):
+        self.next_id += 1
+        self.created.append(data)
+        return SimpleNamespace(sensor_id=self.next_id, **data)
+
+
+class FakeSensorTypes:
+    def __init__(self, existing=(1,)):
+        self.existing = set(existing)
+
+    async def get(self, sensor_type_id):
+        return SimpleNamespace(sensor_type_id=sensor_type_id) if sensor_type_id in self.existing else None
+
+
+def build_with_sensors(sensors=None, sensor_types=None):
+    service, store, nodes, clock = build()
+    sensors = sensors or FakeSensors()
+    service.sensors = sensors
+    service.sensor_types = sensor_types or FakeSensorTypes()
+    return service, nodes, sensors
+
+
+def request_with_sensors(*sensors):
+    return RegistrationRequest(
+        code="NODE-S", name="Nodo", building_id=1, zone_id=1,
+        sensors=[{"code": code, "sensor_type_id": type_id} for code, type_id in sensors],
+    )
+
+
+@pytest.mark.asyncio
+async def test_approve_creates_the_node_and_its_sensors():
+    service, nodes, sensors = build_with_sensors()
+    item, _ = await service.request(request_with_sensors(("S-1", 1), ("S-2", 1)))
+
+    approved = await service.approve(item.id, None)
+
+    assert len(sensors.created) == 2
+    assert all(s["primary_node_id"] == approved.node_id for s in sensors.created)
+    assert approved.sensor_ids == [501, 502]
+
+
+@pytest.mark.asyncio
+async def test_request_rejects_a_sensor_code_that_already_exists():
+    service, _, _ = build_with_sensors(sensors=FakeSensors(existing_codes={"S-1"}))
+    with pytest.raises(ConflictError):
+        await service.request(request_with_sensors(("S-1", 1)))
+
+
+@pytest.mark.asyncio
+async def test_request_rejects_an_unknown_sensor_type():
+    from app.core.exceptions import UnprocessableEntityError
+
+    service, _, _ = build_with_sensors()
+    with pytest.raises(UnprocessableEntityError):
+        await service.request(request_with_sensors(("S-1", 99)))
+
+
+@pytest.mark.asyncio
+async def test_approve_creates_nothing_if_a_sensor_code_was_taken_meanwhile():
+    sensors = FakeSensors()
+    service, nodes, sensors = build_with_sensors(sensors=sensors)
+    item, _ = await service.request(request_with_sensors(("S-1", 1)))
+    sensors.existing.add("S-1")
+
+    with pytest.raises(ConflictError):
+        await service.approve(item.id, None)
+
+    assert nodes.by_code == {}
+    assert sensors.created == []
+
+
+def test_request_schema_rejects_duplicate_sensor_codes():
+    with pytest.raises(ValueError):
+        request_with_sensors(("S-1", 1), ("S-1", 2))

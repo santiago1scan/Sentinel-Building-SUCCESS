@@ -152,8 +152,12 @@ async def get_registration_service(
     repo: NodeRepository = Depends(get_node_repo),
     zone_repo: ZoneRepository = Depends(get_zone_repo),
     building_repo: BuildingRepository = Depends(get_building_repo),
+    sensor_repo: SensorRepository = Depends(get_sensor_repo),
+    sensor_type_repo: SensorTypeRepository = Depends(get_sensor_type_repo),
 ) -> AsyncGenerator[RegistrationService, None]:
-    yield RegistrationService(get_registration_store(), repo, zone_repo, get_broker_admin(), building_repo)
+    yield RegistrationService(
+        get_registration_store(), repo, zone_repo, get_broker_admin(), building_repo, sensor_repo, sensor_type_repo,
+    )
 
 
 async def get_node_service(
