@@ -33,7 +33,7 @@ async def seeded():
         s.add(zone)
         await s.flush()
         node = Node(code="NODE-FLOOR-1", name="Bridge piso 1", zone_id=zone.zone_id)
-        stype = SensorType(name="BME688", sampling_interval=1)
+        stype = SensorType(name="BME688-TEST", sampling_interval=1)  # BME688 itself is seeded (c3f8a2d6b9e1)
         role = AppRole(role_code=1, name="Guarda")  # BIGINT in the backend, VARCHAR in success_db.sql
         s.add_all([node, stype, role])
         await s.flush()

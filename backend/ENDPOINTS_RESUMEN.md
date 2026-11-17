@@ -60,8 +60,9 @@ GET    /nodes/{node_id}/received-readings
 ```
 # Sensor Types
 POST   /sensor-types
-GET    /sensor-types
-GET    /sensor-types/{sensor_type_id}
+GET    /sensor-types                          (cada tipo con sus métricas y rangos: "metrics")
+GET    /sensor-types/{sensor_type_id}         (un tipo con sus métricas)
+GET    /sensor-types/{sensor_type_id}/sensors (sensores de ese tipo)
 PATCH  /sensor-types/{sensor_type_id}
 DELETE /sensor-types/{sensor_type_id}
 
@@ -226,7 +227,7 @@ curl http://localhost:8000/alerts/unhandled
 1. POST /buildings              (crear edificio)
 2. POST /zones                  (crear zona en edificio)
 3. POST /nodes                  (crear nodo/bridge)
-4. POST /sensor-types           (crear tipos de sensor)
+4. GET  /sensor-types           (ya vienen sembrados: ADXL355, AMG8833, BME688, INA219)
 5. POST /sensors                (crear sensores)
 ```
 

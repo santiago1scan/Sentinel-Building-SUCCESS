@@ -33,9 +33,10 @@ async def session():
         s.add(zone)
         await s.flush()
         node = Node(code=NODE_CODE, name="Bridge piso 1", zone_id=zone.zone_id)
-        gas_type = SensorType(name="BME688", sampling_interval=1)
-        power_type = SensorType(name="INA219", sampling_interval=1)
-        s.add_all([node, gas_type, power_type])
+        # The types come from the seeded sensor catalog (migration c3f8a2d6b9e1), with their metrics and ranges.
+        gas_type = (await s.execute(select(SensorType).where(SensorType.name == "BME688"))).scalar_one()
+        power_type = (await s.execute(select(SensorType).where(SensorType.name == "INA219"))).scalar_one()
+        s.add(node)
         await s.flush()
         s.add_all([
             Sensor(code=GAS, primary_node_id=node.node_id, sensor_type_id=gas_type.sensor_type_id),
