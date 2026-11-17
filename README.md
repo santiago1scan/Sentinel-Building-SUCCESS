@@ -138,6 +138,34 @@ docker compose up -d --build         # reconstruir imágenes y levantar
 > `docker compose down -v` **borra la base de datos** y los volúmenes del simulador. Úsalo solo si
 > quieres empezar de cero.
 
+## Correr los tests
+
+### Backend (`monolito-consulta`)
+
+```bash
+cd backend/monolito-consulta
+python3 -m venv venv                       # si el venv existe pero falla, bórralo: rm -rf venv
+source venv/bin/activate
+pip install -r requirements-dev.txt
+pytest tests/unit -q                       # solo los unitarios
+pytest tests/unit/test_registration_flow.py -q   # un archivo
+pytest -k unknown_zone -q                  # por nombre
+```
+
+- Los tests marcados `db` necesitan un PostgreSQL desechable en `TEST_DATABASE_URL` y **borran y recrean
+  las tablas**. Si no tienes uno, corre solo `tests/unit`.
+- El proyecto pide Python `>=3.11`. Con Python 3.14 algunas dependencias fijadas (`asyncpg`,
+  `pydantic_core`) pueden no compilar: usa 3.11 o 3.12 (`python3.12 -m venv venv`).
+
+### Frontend
+
+```bash
+cd frontend
+npm test                                   # todos los tests (vitest)
+npx vitest run src/features/sensors        # una carpeta
+npm run lint                               # oxlint
+```
+
 ## Estructura del repositorio
 
 ```

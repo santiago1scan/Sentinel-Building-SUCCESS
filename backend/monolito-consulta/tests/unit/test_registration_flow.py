@@ -173,8 +173,32 @@ async def test_node_does_not_exist_until_approved():
 
 
 @pytest.mark.asyncio
-async def test_approve_with_unknown_zone_is_not_found():
+async def test_request_with_unknown_zone_is_not_found():
     service, *_ = build(zones=FakeZones(existing=()))
+    with pytest.raises(NotFoundError):
+        await service.request(request_body())
+
+
+@pytest.mark.asyncio
+async def test_request_with_unknown_building_is_not_found():
+    service, *_ = build(buildings=FakeBuildings(existing=()))
+    with pytest.raises(NotFoundError):
+        await service.request(request_body())
+
+
+@pytest.mark.asyncio
+async def test_request_with_zone_of_another_building_is_unprocessable():
+    from app.core.exceptions import UnprocessableEntityError
+
+    service, *_ = build(zones=FakeZones(existing=(1,), building_of={1: 2}))
+    with pytest.raises(UnprocessableEntityError):
+        await service.request(request_body())
+
+
+@pytest.mark.asyncio
+async def test_approve_with_unknown_zone_is_not_found():
+    # La zona 1 existe (la solicitud la valida); la 99, con la que se aprueba, no.
+    service, *_ = build(zones=FakeZones(existing=(1,)))
     item, _ = await service.request(request_body())
 
     with pytest.raises(NotFoundError):
