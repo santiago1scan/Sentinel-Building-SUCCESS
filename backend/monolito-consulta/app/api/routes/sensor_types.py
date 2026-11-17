@@ -4,7 +4,8 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_sensor_type_service
-from app.schemas.sensor_type import SensorTypeCreate, SensorTypeRead, SensorTypeUpdate
+from app.schemas.sensor import SensorRead
+from app.schemas.sensor_type import SensorTypeCreate, SensorTypeRead, SensorTypeUpdate, SensorTypeWithMetrics
 from app.services.sensor_type_service import SensorTypeService
 
 router = APIRouter(prefix="/sensor-types", tags=["sensor-types"])
@@ -18,7 +19,7 @@ async def create_sensor_type(
     return await service.create(sensor_type_in)
 
 
-@router.get("", response_model=Sequence[SensorTypeRead])
+@router.get("", response_model=Sequence[SensorTypeWithMetrics])
 async def list_sensor_types(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
@@ -27,7 +28,7 @@ async def list_sensor_types(
     return await service.get_all(limit=limit, offset=offset)
 
 
-@router.get("/{sensor_type_id}", response_model=SensorTypeRead)
+@router.get("/{sensor_type_id}", response_model=SensorTypeWithMetrics)
 async def get_sensor_type(
     sensor_type_id: int,
     service: SensorTypeService = Depends(get_sensor_type_service),
@@ -60,7 +61,7 @@ async def delete_sensor_type(
         raise HTTPException(status_code=404, detail="SensorType not found")
 
 
-@router.get("/{sensor_type_id}/sensors", response_model=Sequence[SensorTypeRead])
+@router.get("/{sensor_type_id}/sensors", response_model=Sequence[SensorRead])
 async def get_sensor_type_sensors(
     sensor_type_id: int,
     service: SensorTypeService = Depends(get_sensor_type_service),

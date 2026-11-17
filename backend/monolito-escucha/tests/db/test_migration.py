@@ -68,3 +68,122 @@ def test_floor_table_replaces_the_zone_floor_number():
 
     up = run_alembic("upgrade", "head")
     assert up.returncode == 0, up.stderr
+
+
+SEED = "c3f8a2d6b9e1"  # the sensor catalog seed
+
+
+async def _fetch(sql: str, *args):
+    conn = await asyncpg.connect(TEST_DATABASE_URL.replace("+asyncpg", ""))
+    rows = await conn.fetch(sql, *args)
+    await conn.close()
+    return rows
+
+
+def _catalog() -> dict[str, dict[str, tuple]]:
+    rows = asyncio.run(_fetch(
+        "SELECT t.name AS type, m.metric_code, m.normal_minimum, m.normal_maximum, m.alarm_below "
+        "FROM sensor_type t LEFT JOIN sensor_metric m ON m.sensor_type_id = t.sensor_type_id"))
+    catalog: dict[str, dict[str, tuple]] = {}
+    for r in rows:
+        metrics = catalog.setdefault(r["type"], {})
+        if r["metric_code"]:
+            low, high = r["normal_minimum"], r["normal_maximum"]
+            metrics[r["metric_code"]] = (None if low is None else float(low), None if high is None else float(high),
+                                         r["alarm_below"])
+    return catalog
+
+
+def test_sensor_catalog_is_seeded_with_a_range_for_all_18_metrics():
+    """Case of 16-Nov-2026: sensor_type and sensor_metric were empty, so no sensor could be registered."""
+    reset_schema()
+    catalog = _catalog()
+
+    assert set(catalog) == {"ADXL355", "AMG8833", "BME688", "INA219"}
+    assert sum(len(m) for m in catalog.values()) == 18
+    # The 6 ranges of Parametros_Normales_Cauca_Colombia.xlsx (sheet Umbrales_Normales).
+    assert catalog["BME688"]["temperature_c"] == (10, 31, True)
+    assert catalog["BME688"]["humidity_percent"] == (72.78, 94.48, True)
+    assert catalog["BME688"]["iaq_index"] == (51, 100, False)  # below 51 is cleaner air, not an alarm
+    assert catalog["ADXL355"]["x_g"] == (-0.01, 0.01, True)
+    assert catalog["ADXL355"]["y_g"] == (-0.01, 0.01, True)
+    assert catalog["ADXL355"]["z_g"] == (0.99, 1.01, True)
+    # The 9 team ranges of 16-Nov-2026 (thermal camera, gases, vibration, power).
+    assert catalog["ADXL355"]["rms_g"] == (0.0002, 0.0071, True)
+    assert catalog["ADXL355"]["frequency_hz"] == (3, 4, True)
+    assert catalog["AMG8833"]["maximum_c"] == (17, 35, True)
+    assert catalog["AMG8833"]["average_c"] == (17, 26, True)
+    assert catalog["AMG8833"]["hot_pixels"] == (0, 0, True)
+    assert catalog["BME688"]["tvoc_ppb"] == (300, 500, False)  # 0.3-0.5 ppm; below is cleaner air, not an alarm
+    assert catalog["INA219"]["bus_voltage_v"] == (11, 12, True)
+    assert catalog["INA219"]["current_ma"] == (300, 500, True)
+    assert catalog["INA219"]["power_mw"] == (3300, 6000, True)
+    # Excel sea-level pressure taken to Popayan's altitude (~825 hPa), with a margin (17-Nov-2026).
+    assert catalog["BME688"]["pressure_hpa"] == (815, 835, True)
+    # 0/1 flags: normal is 0 (on mains, battery fine).
+    assert catalog["INA219"]["power_source"] == (0, 0, True)
+    assert catalog["INA219"]["battery_low"] == (0, 0, True)
+    without_range = [code for metrics in catalog.values() for code, (low, high, _) in metrics.items()
+                     if low is None and high is None]
+    assert without_range == []
+
+
+def test_sensor_catalog_seed_is_idempotent_and_downgrade_keeps_what_is_in_use():
+    reset_schema()
+    asyncio.run(_fetch(
+        "WITH b AS (INSERT INTO building (name) VALUES ('Sentinel') RETURNING building_id), "
+        "z AS (INSERT INTO zone (building_id, name) SELECT building_id, 'Z-1' FROM b RETURNING zone_id), "
+        "n AS (INSERT INTO node (code, name, zone_id) SELECT 'NODE-1', 'Nodo 1', zone_id FROM z RETURNING node_id) "
+        "INSERT INTO sensor (code, primary_node_id, sensor_type_id) "
+        "SELECT 'ACC-1', node_id, (SELECT sensor_type_id FROM sensor_type WHERE name = 'ADXL355') FROM n"))
+
+    down = run_alembic("downgrade", "-1")
+    assert down.returncode == 0, down.stderr
+    after_down = _catalog()
+    assert set(after_down) == {"ADXL355"}  # a sensor uses it: the type stays, its unused metrics go
+
+    up = run_alembic("upgrade", "head")
+    assert up.returncode == 0, up.stderr
+    assert sum(len(m) for m in _catalog().values()) == 18  # the existing type is reused, nothing is duplicated
+
+
+def test_sensor_catalog_matches_default_ranges_and_reads_every_30_s():
+    """The seed and app/analytics/ranges.py must not drift: a metric is the same seeded or created on first sight."""
+    from app.analytics.ranges import DEFAULT_RANGES
+
+    reset_schema()
+    rows = asyncio.run(_fetch(
+        "SELECT m.metric_code, m.unit, m.normal_minimum, m.normal_maximum, m.physical_minimum, m.physical_maximum, "
+        "m.alarm_below, m.alarm_above FROM sensor_metric m"))
+    seeded = {r["metric_code"]: r for r in rows}
+
+    def f(v):
+        return None if v is None else float(v)
+
+    for code, r in DEFAULT_RANGES.items():
+        row = seeded[code]
+        assert (f(row["normal_minimum"]), f(row["normal_maximum"]), f(row["physical_minimum"]),
+                f(row["physical_maximum"]), row["alarm_below"], row["alarm_above"], row["unit"]) == (
+            r.normal_minimum, r.normal_maximum, r.physical_minimum, r.physical_maximum, r.alarm_below,
+            r.alarm_above, r.unit), code
+    intervals = asyncio.run(_fetch("SELECT DISTINCT sampling_interval FROM sensor_type"))
+    assert [r["sampling_interval"] for r in intervals] == [30]
+
+
+def test_sensor_catalog_seed_leaves_an_existing_metric_untouched():
+    reset_schema()
+    down = run_alembic("downgrade", "-1")
+    assert down.returncode == 0, down.stderr
+    # A BME688 with temperature_c already there (e.g. created on first sight), with another range.
+    asyncio.run(_fetch(
+        "WITH t AS (INSERT INTO sensor_type (name, sampling_interval) VALUES ('BME688', 1) RETURNING sensor_type_id) "
+        "INSERT INTO sensor_metric (sensor_type_id, metric_code, normal_minimum, normal_maximum) "
+        "SELECT sensor_type_id, 'temperature_c', 15, 25 FROM t"))
+
+    up = run_alembic("upgrade", "head")
+    assert up.returncode == 0, up.stderr
+    catalog = _catalog()
+    assert catalog["BME688"]["temperature_c"][:2] == (15, 25)  # not overwritten
+    assert len(catalog["BME688"]) == 5  # the missing ones were added
+    interval = asyncio.run(_fetch("SELECT sampling_interval FROM sensor_type WHERE name = 'BME688'"))
+    assert interval[0]["sampling_interval"] == 1

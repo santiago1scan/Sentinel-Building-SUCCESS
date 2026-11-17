@@ -11,8 +11,21 @@ def test_defaults_come_from_the_excel():
     assert (HUMIDITY.normal_minimum, HUMIDITY.normal_maximum) == (72.78, 94.48)
     assert (IAQ.normal_minimum, IAQ.normal_maximum, IAQ.alarm_below) == (51, 100, False)
     assert (DEFAULT_RANGES["z_g"].normal_minimum, DEFAULT_RANGES["z_g"].normal_maximum) == (0.99, 1.01)
-    # Excel pressure is sea-level (1013-1024 hPa); Popayan measures about 825 hPa, so no normal range.
-    assert DEFAULT_RANGES["pressure_hpa"].normal_minimum is None
+    # Excel pressure is sea-level (1013-1024 hPa); Popayan measures about 825 hPa.
+    assert (DEFAULT_RANGES["pressure_hpa"].normal_minimum, DEFAULT_RANGES["pressure_hpa"].normal_maximum) == (815, 835)
+
+
+def test_team_ranges_judge_the_node_readings():
+    """Ranges the team passed on 16-Nov-2026 for the thermal camera, TVOC, vibration and power."""
+    assert evaluate(1, DEFAULT_RANGES["hot_pixels"]) == "above"  # normal max is 0 hot pixels
+    assert evaluate(0, DEFAULT_RANGES["hot_pixels"]) == "normal"
+    assert evaluate(100, DEFAULT_RANGES["tvoc_ppb"]) == "normal"  # 0.1 ppm: cleaner air, not an alarm
+    assert evaluate(900, DEFAULT_RANGES["tvoc_ppb"]) == "above"
+    assert evaluate(10.5, DEFAULT_RANGES["bus_voltage_v"]) == "below"
+    assert evaluate(7000, DEFAULT_RANGES["power_mw"]) == "above"
+    assert evaluate(2.5, DEFAULT_RANGES["frequency_hz"]) == "below"
+    # Zero-width range: counted in pixels, so a hot camera does not rank last among open alerts.
+    assert deviation(3, DEFAULT_RANGES["hot_pixels"]) == 3
 
 
 def test_iaq_below_51_is_cleaner_air_not_an_alarm():
@@ -31,8 +44,9 @@ def test_humidity_150_is_impossible_not_above():
     assert evaluate(150, HUMIDITY) == "impossible"
 
 
-def test_pressure_825_has_no_range():
-    assert evaluate(825, DEFAULT_RANGES["pressure_hpa"]) == "no_range"
+def test_popayan_pressure_is_normal_and_sea_level_is_above():
+    assert evaluate(825, DEFAULT_RANGES["pressure_hpa"]) == "normal"
+    assert evaluate(1013, DEFAULT_RANGES["pressure_hpa"]) == "above"
 
 
 def test_edges_are_normal():
