@@ -1,23 +1,21 @@
 """Página de inicio de sesión y verificación de la sesión de Firebase."""
 
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from app.core.config import get_settings
 from app.core.firebase_auth import FirebaseUser
 from app.presentacion.auth import require_user
+from app.presentacion.plantillas import plantillas
 
 router = APIRouter()
 
-PAGINA_LOGIN = Path(__file__).resolve().parent.parent / "paginas" / "login.html"
-
 
 @router.get("/login", response_class=HTMLResponse)
-def pagina_login() -> str:
-    return PAGINA_LOGIN.read_text(encoding="utf-8")
+def pagina_login(request: Request):
+    return plantillas.TemplateResponse(request, "login/login.html")
 
 
 @router.get("/auth/config")

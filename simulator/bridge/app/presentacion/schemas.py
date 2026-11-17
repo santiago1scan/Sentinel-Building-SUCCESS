@@ -7,7 +7,7 @@ la forma del cuerpo, igual que bridge_service.py.
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 def extraer_lecturas(body: Any) -> list[dict[str, Any]]:
@@ -40,3 +40,11 @@ class IngestOut(BaseModel):
     mqtt_catch_up: int
     lora_summary: int
     storage: AlmacenamientoOut
+
+
+class RegistroIn(BaseModel):
+    """Datos que pide consulta para registrar el nodo. El código lo fija el bridge, no el navegador."""
+
+    name: str = Field(min_length=1, max_length=150)
+    building_id: int = Field(gt=0)
+    zone_id: int = Field(gt=0)

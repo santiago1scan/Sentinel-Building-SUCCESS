@@ -33,6 +33,25 @@ CREATE TABLE IF NOT EXISTS bridge_log (
     level TEXT NOT NULL,
     detail TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS node_registration (
+    node_code TEXT PRIMARY KEY,
+    registration_id TEXT NOT NULL,
+    poll_secret TEXT NOT NULL,
+    name TEXT NOT NULL,
+    building_id INTEGER NOT NULL,
+    zone_id INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    detail TEXT,
+    requested_at TEXT NOT NULL,
+    expires_at TEXT,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS node_credential (
+    node_code TEXT PRIMARY KEY,
+    node_id INTEGER,
+    token TEXT NOT NULL,
+    obtained_at TEXT NOT NULL
+);
 """
 
 

@@ -129,6 +129,10 @@ services:
       SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
       SENTINEL_DATA_DIR: /app/data_bridge
       SENTINEL_BUILDING_CODE: SB-001
+      # Único nodo de este bridge: las gráficas de la página de inicio muestran sus lecturas.
+      SENTINEL_NODE_CODE: NODE-FLOOR-1
+      # Backend de consulta: ahí se registra el nodo desde la página /perfil.
+      SENTINEL_CONSULTA_URL: http://monolito-consulta:8089
       SENTINEL_INTERVAL: "30"
       SENTINEL_API_URL: http://monolito-escucha:8089
       SENTINEL_API_PATH: /telemetry/aggregate

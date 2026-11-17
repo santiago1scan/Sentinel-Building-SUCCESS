@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     api_timeout: float = 10.0
 
     node_tokens: str | None = None
+    # Código del único nodo de este bridge (lo usan las gráficas). Si falta, se toma el
+    # primer nodo con token, o el primero del catálogo.
+    node_code: str = ""
+
+    # Backend de consulta: ahí se registra el nodo (POST /registrations).
+    consulta_url: str = ""
+    consulta_timeout: float = 10.0
 
     mqtt_host: str | None = None
     mqtt_port: int = 1883

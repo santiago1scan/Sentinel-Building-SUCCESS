@@ -1,0 +1,39 @@
+/* Solo lo propio de la página de inicio; colores y bordes salen de las variables de /static/styles.css. */
+
+/* styles.css da display a varias clases (p. ej. .dashboard-link) y eso anula el atributo hidden. */
+[hidden] { display: none !important; }
+
+.sesion { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+
+.avatar {
+  display: grid; width: 26px; height: 26px; place-items: center; flex: 0 0 auto;
+  border: 1px solid #526652; border-radius: 50%;
+  background: linear-gradient(145deg, #27382b, #151d17);
+  color: var(--gold); font-size: .8rem; font-weight: 800;
+}
+
+.ventana { min-width: 170px; margin: 0; }
+
+.grafica-lista { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.grafica-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgb(29 39 32 / 96%), rgb(20 27 22 / 98%));
+  box-shadow: var(--shadow);
+}
+.grafica svg { display: block; width: 100%; height: auto; }
+
+/* Colores del SVG que genera el servidor (componente de gráfica). */
+.g-titulo { fill: var(--text); font-size: 14px; font-weight: 700; }
+.g-texto { fill: var(--muted); font-size: 11px; }
+.g-eje { stroke: var(--line); stroke-width: 1; }
+.g-linea { fill: none; stroke: var(--blue); stroke-width: 2; stroke-linejoin: round; }
+.g-punto { fill: var(--blue); }
+.g-normal { fill: var(--green); }
+.g-high { fill: var(--gold); }
+.g-critical { fill: var(--red); }
+
+@media (max-width: 680px) {
+  .sesion { justify-content: flex-start; }
+}

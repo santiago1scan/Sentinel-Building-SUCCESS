@@ -1,0 +1,99 @@
+{% extends "_base.html" %}
+{% from "_componentes/macros.html" import encabezado, indicador, pie, seccion, tarjeta_grafica %}
+
+{% block titulo %}Sentinel Building — Lecturas del nodo{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="/paginas/inicio/inicio.css">{% endblock %}
+
+{% block contenido %}
+  {% call encabezado("Panel de lecturas del nodo") %}
+    {# Ambos arrancan ocultos: se muestra uno u otro cuando se sabe si hay sesión. #}
+    <a id="entrar" class="dashboard-link" href="/login" hidden>Iniciar sesión</a>
+    <noscript><a class="dashboard-link" href="/login">Iniciar sesión</a></noscript>
+    <a id="perfil" class="dashboard-link" href="/perfil" hidden>
+      <span id="perfilInicial" class="avatar" aria-hidden="true">?</span>
+      Perfil
+    </a>
+  {% endcall %}
+
+  <section class="toolbar" aria-label="Nodo y ventana de tiempo">
+    {{ indicador(titulo="Nodo " ~ nodo, detalle="Cargando…", clase="online", id_detalle="estado") }}
+    <div class="field ventana">
+      <label for="ventana">Ventana de tiempo</label>
+      <select id="ventana">
+        <option value="15">15 minutos</option>
+        <option value="60" selected>1 hora</option>
+        <option value="360">6 horas</option>
+        <option value="1440">24 horas</option>
+      </select>
+    </div>
+  </section>
+
+  {% call seccion("lecturas", "Lecturas de los sensores", "Se actualiza cada 30 segundos · horas en UTC") %}
+    <div class="grafica-lista">
+      {% for nombre in graficas %}
+      {{ tarjeta_grafica(nombre) }}
+      {% endfor %}
+    </div>
+  {% endcall %}
+
+  {{ pie("ultima", "Esperando datos…") }}
+{% endblock %}
+
+{% block scripts %}
+{% raw %}
+  <script>
+    "use strict";
+    const ventana = document.getElementById("ventana");
+
+    // Componente genérico: cada <div data-grafica="nombre"> se llena con /graficas/nombre.svg.
+    async function cargar(elemento) {
+      try {
+        const r = await fetch(`/graficas/${elemento.dataset.grafica}.svg?minutos=${ventana.value}`, { cache: "no-store" });
+        if (!r.ok) throw new Error(r.status);
+        elemento.innerHTML = await r.text();  // SVG del propio servidor, con el texto ya escapado
+      } catch (e) {
+        elemento.textContent = "No se pudo cargar la gráfica.";
+      }
+    }
+
+    async function refrescar() {
+      await Promise.all(Array.from(document.querySelectorAll("[data-grafica]"), cargar));
+      document.getElementById("estado").textContent = "Actualizado";
+      document.getElementById("ultima").textContent = "Última actualización: " + new Date().toLocaleTimeString();
+    }
+
+    ventana.addEventListener("change", refrescar);
+    refrescar();
+    setInterval(refrescar, 30000);
+  </script>
+
+  <script type="module">
+    // Sesión en el encabezado. La página es pública: con sesión se muestra "Perfil" (lleva a /perfil);
+    // sin sesión, o si Firebase no carga o no está configurado, se muestra "Iniciar sesión".
+    import { iniciarFirebase, inicialDe } from "/static/js/sesion.js";
+
+    const $ = (id) => document.getElementById(id);
+
+    function mostrarSinSesion() {
+      $("entrar").hidden = false;
+      $("perfil").hidden = true;
+    }
+
+    function mostrarConSesion(user) {
+      $("perfilInicial").textContent = inicialDe(user);
+      $("entrar").hidden = true;
+      $("perfil").hidden = false;
+    }
+
+    (async () => {
+      try {
+        const fb = await iniciarFirebase();
+        if (!fb) { mostrarSinSesion(); return; }
+        fb.onAuthStateChanged(fb.auth, (user) => (user ? mostrarConSesion(user) : mostrarSinSesion()));
+      } catch (e) {
+        mostrarSinSesion();
+      }
+    })();
+  </script>
+{% endraw %}
+{% endblock %}

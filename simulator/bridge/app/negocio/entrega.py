@@ -87,4 +87,4 @@ class Entregador:
         return sorted(self._tokens)
 
     def estado_mqtt(self) -> dict[str, bool]:
-        return {nodo: enlace.conectado() for nodo, enlace in self._enlaces.items()}
+        return {nodo: enlace.conectado() for nodo, enlace in list(self._enlaces.items())}

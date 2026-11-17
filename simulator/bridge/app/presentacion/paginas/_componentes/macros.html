@@ -1,0 +1,62 @@
+{# Componentes reutilizables. Se importan con:
+   {% from "_componentes/macros.html" import encabezado, pie, seccion %}
+   Los que envuelven contenido usan {% call componente(...) %}...{% endcall %}. #}
+
+{# Encabezado de la aplicación. El contenido del bloque call va en la navegación de la derecha. #}
+{% macro encabezado(subtitulo) -%}
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true">SB</div>
+    <div>
+      <p class="eyebrow">Bridge</p>
+      <h1>Sentinel Building</h1>
+      <p class="topbar-subtitle">{{ subtitulo }}</p>
+    </div>
+  </div>
+  <nav class="sesion" aria-label="Navegación">{{ caller() }}</nav>
+</header>
+{%- endmacro %}
+
+{# Pie de página con un texto a la derecha que el JavaScript de la página puede actualizar. #}
+{% macro pie(id_derecha="ultima", texto_derecha="—") -%}
+<footer class="footer">
+  <span>Sentinel Building · SUCCESS · Bridge</span>
+  <span id="{{ id_derecha }}">{{ texto_derecha }}</span>
+</footer>
+{%- endmacro %}
+
+{# Sección con título y una nota opcional; el contenido va en el bloque call. #}
+{% macro seccion(id, titulo, nota="") -%}
+<section aria-labelledby="{{ id }}-titulo">
+  <div class="section-heading">
+    <h2 id="{{ id }}-titulo">{{ titulo }}</h2>
+    {% if nota %}<p>{{ nota }}</p>{% endif %}
+  </div>
+  {{ caller() }}
+</section>
+{%- endmacro %}
+
+{# Indicador de estado: punto de color, título y detalle. Los ids son opcionales (para el JavaScript). #}
+{% macro indicador(titulo="", detalle="", clase="", id_punto="", id_titulo="", id_detalle="") -%}
+<div class="sim-state">
+  <span {% if id_punto %}id="{{ id_punto }}" {% endif %}class="status-dot {{ clase }}" aria-hidden="true"></span>
+  <div>
+    <div {% if id_titulo %}id="{{ id_titulo }}" {% endif %}class="state-title">{{ titulo }}</div>
+    <div {% if id_detalle %}id="{{ id_detalle }}" {% endif %}class="state-detail" role="status">{{ detalle }}</div>
+  </div>
+</div>
+{%- endmacro %}
+
+{# Campo de formulario con etiqueta. `atributos` es un diccionario de atributos HTML del <input>. #}
+{% macro campo(id, etiqueta, tipo="text", atributos={}) -%}
+<div class="field">
+  <label for="{{ id }}">{{ etiqueta }}</label>
+  <input id="{{ id }}" type="{{ tipo }}" required
+    {%- for nombre, valor in atributos.items() %} {{ nombre }}="{{ valor }}"{% endfor %}>
+</div>
+{%- endmacro %}
+
+{# Tarjeta de una gráfica: el JavaScript de la página la llena con /graficas/<nombre>.svg. #}
+{% macro tarjeta_grafica(nombre) -%}
+<article class="grafica-card"><div class="grafica" data-grafica="{{ nombre }}"></div></article>
+{%- endmacro %}
