@@ -1,0 +1,24 @@
+.header {
+  display: grid;
+  gap: 6px;
+}
+
+.name {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 40px);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.sub {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin: 0;
+}

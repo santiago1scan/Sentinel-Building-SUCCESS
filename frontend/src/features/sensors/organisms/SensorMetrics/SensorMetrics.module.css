@@ -1,3 +1,14 @@
+.section {
+  display: grid;
+  gap: 12px;
+  color: var(--text);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));

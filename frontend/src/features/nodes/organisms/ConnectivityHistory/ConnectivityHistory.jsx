@@ -5,13 +5,16 @@ const formatDate = (value) => new Date(value).toLocaleString("es");
 
 /** Sesiones de conexión del nodo, de la más reciente a la más antigua. `now` (ms) mide las sesiones abiertas. */
 function ConnectivityHistory({ logs, now }) {
-  if (logs.length === 0) {
-    return <p className={styles.empty}>Sin registros de conexión.</p>;
-  }
-
   const rows = [...logs].sort((a, b) => new Date(b.started_at) - new Date(a.started_at)).slice(0, 15);
 
   return (
+    <section className={styles.section} aria-labelledby="conn-title">
+      <h3 id="conn-title" className={styles.title}>
+        Historial de conexión
+      </h3>
+      {logs.length === 0 ? (
+        <p className={styles.empty}>Sin registros de conexión.</p>
+      ) : (
     <table className={styles.table}>
       <thead>
         <tr>
@@ -33,6 +36,8 @@ function ConnectivityHistory({ logs, now }) {
         })}
       </tbody>
     </table>
+      )}
+    </section>
   );
 }
 

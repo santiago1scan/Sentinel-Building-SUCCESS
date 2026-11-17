@@ -1,3 +1,14 @@
+.section {
+  display: grid;
+  gap: 12px;
+  color: var(--text);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
