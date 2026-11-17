@@ -146,7 +146,7 @@ def test_bridge_can_request_a_registration_without_a_token(client, monkeypatch):
     app.dependency_overrides[get_registration_service] = lambda: Service()
     try:
         response = client.post("/registrations", json={
-            "code": "NODE-1", "name": "Nodo", "building_code": "SB-001", "zone_code": "Z1"})
+            "code": "NODE-1", "name": "Nodo", "building_code": "SB-001", "zone_id": 1})
     finally:
         app.dependency_overrides.pop(get_registration_service, None)
 

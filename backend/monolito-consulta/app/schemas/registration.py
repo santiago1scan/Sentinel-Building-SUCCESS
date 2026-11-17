@@ -8,7 +8,7 @@ class RegistrationRequest(BaseModel):
     code: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=150)
     building_code: str = Field(min_length=1, max_length=50)
-    zone_code: str = Field(min_length=1, max_length=50)
+    zone_id: int = Field(gt=0)
 
 
 class RegistrationAccepted(BaseModel):
@@ -23,7 +23,7 @@ class PendingRegistrationRead(BaseModel):
     code: str
     name: str
     building_code: str
-    zone_code: str
+    zone_id: int
     status: str
     created_at: datetime.datetime
     expires_at: datetime.datetime

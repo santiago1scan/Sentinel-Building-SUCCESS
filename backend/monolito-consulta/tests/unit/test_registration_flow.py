@@ -87,7 +87,7 @@ def build(clock=None, broker=None, zones=None):
 
 
 def request_body(code="NODE-FLOOR-3"):
-    return RegistrationRequest(code=code, name="Bridge 3", building_code="SB-001", zone_code="ZONE-F3")
+    return RegistrationRequest(code=code, name="Bridge 3", building_code="SB-001", zone_id=3)
 
 
 # --- Almacén: tiempo de vida y secreto ---

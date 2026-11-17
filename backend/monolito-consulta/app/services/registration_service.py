@@ -40,7 +40,7 @@ class RegistrationService:
             raise ConflictError(f"Ya existe un nodo con código {body.code}")
         if self.store.has_open_request_for(body.code):
             raise ConflictError(f"Ya hay una solicitud abierta para {body.code}")
-        return self.store.create(body.code, body.name, body.building_code, body.zone_code)
+        return self.store.create(body.code, body.name, body.building_code, body.zone_id)
 
     def list_pending(self) -> list[Registration]:
         return self.store.pending()
