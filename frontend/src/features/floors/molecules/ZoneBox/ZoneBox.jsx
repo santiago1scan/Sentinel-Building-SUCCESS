@@ -6,6 +6,7 @@ function ZoneBox({ zone, nodes }) {
   return (
     <section className={styles.zone} aria-label={`Zona ${zone.name}`}>
       <h3 className={styles.name}>{zone.name}</h3>
+      <p className={styles.id}>ID: {zone.zone_id}</p>
 
       {nodes.length === 0 ? (
         <p className={styles.empty}>Sin nodos</p>

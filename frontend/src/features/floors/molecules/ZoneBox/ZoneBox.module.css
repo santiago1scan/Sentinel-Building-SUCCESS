@@ -16,6 +16,13 @@
   overflow-wrap: anywhere;
 }
 
+.id {
+  margin: -6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: bold;
+}
+
 .nodes {
   display: grid;
   gap: 8px;
