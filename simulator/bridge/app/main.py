@@ -1,15 +1,10 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 
 from app.core.config import Settings, get_settings
 from app.core.contenedor import crear_contenedor
-from app.presentacion.routers import health, login, panel, readings
-
-
-ESTATICOS = Path(__file__).resolve().parent / "presentacion" / "estaticos"
+from app.presentacion.routers import health, login, readings
 
 
 def crear_app(ajustes: Settings | None = None) -> FastAPI:
@@ -27,8 +22,6 @@ def crear_app(ajustes: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(readings.router)
     app.include_router(login.router)
-    app.include_router(panel.router)
-    app.mount("/static", StaticFiles(directory=ESTATICOS), name="static")
     return app
 
 

@@ -151,23 +151,29 @@ services:
       mosquitto:
         condition: service_healthy
 
-  mqtt-sensor-simulator:
+  # Simulador de sensores (monolito FastAPI en simulator/simulator). Usa el mismo Dockerfile
+  # del simulador. Su única conexión es el bridge. Panel en http://localhost:8790
+  simulator:
     build:
       context: ./simulator
       dockerfile: Dockerfile
-    container_name: sentinel-mqtt-simulator
+    container_name: sentinel-simulator
     restart: unless-stopped
+    ports:
+      - "8790:8790"
     networks:
       - sentinel-net
-    volumes:
-      - simulator_data:/app/data_sensor_simulator
-      - ./simulator/run_simulator.sh:/app/run_simulator.sh:ro
     depends_on:
       bridge:
         condition: service_started
-    command: bash /app/run_simulator.sh
+    command: uvicorn app.main:app --app-dir /app/simulator --host 0.0.0.0 --port 8790
     environment:
-      - PYTHONUNBUFFERED=1
+      PYTHONUNBUFFERED: "1"
+      SENTINEL_BRIDGE_URL: http://bridge:8766
+      SENTINEL_INTERVAL: "30"
+      SENTINEL_SIM_NODES: NODE-FLOOR-1,NODE-FLOOR-2
+      # Arranca el ciclo de lecturas solo, como el simulador anterior.
+      SENTINEL_AUTOSTART: "true"
 
   # Pruebas de integración: simulador → bridge → escucha, verificadas con consulta.
   # No se levanta con `up`. Ejecutar con:
@@ -205,7 +211,6 @@ services:
 volumes:
   postgres_data:
   bridge_data:
-  simulator_data:
 
 networks:
   sentinel-net:

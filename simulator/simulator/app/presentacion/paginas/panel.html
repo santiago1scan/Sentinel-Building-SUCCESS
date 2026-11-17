@@ -154,7 +154,7 @@
     <section aria-labelledby="live-title">
       <div class="section-heading">
         <h2 id="live-title">Live bridge status</h2>
-        <p>Read-only view of the bridge SQLite database</p>
+        <p>Read-only view of the bridge status</p>
       </div>
       <div class="metrics-grid">
         <article class="metric">
@@ -489,15 +489,5 @@
     refreshStatus();
     setInterval(refreshStatus, 1500);
   </script>
-<script type="module">
-  // Guarda del lado del cliente: sin sesión de Firebase vuelve a /login.
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  const cfg = await (await fetch("/auth/config")).json();
-  if (!cfg.configurado) { location.replace("/login"); }
-  else {
-    onAuthStateChanged(getAuth(initializeApp(cfg)), (user) => { if (!user) location.replace("/login"); });
-  }
-</script>
 </body>
 </html>
