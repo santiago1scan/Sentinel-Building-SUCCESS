@@ -1,55 +1,65 @@
 # Sentinel Building Simulator
 
-This folder contains the sensor simulator and the bridge process used to test
-the Sentinel Building data flow.
+Aquí dejé integrada la versión Beta que he estado probando. Conservé la estructura de tres capas que ya tenía el equipo y agregué mis módulos en el lugar que les corresponde, sin mover el backend ni el frontend.
 
-## Components
+## Cómo lo organicé
 
-- `mqtt_sensor_simulator.py`: generates readings for the virtual sensors.
-- `bridge/bridge_service.py`: receives readings, stores them locally and
-  prepares the standard telemetry message.
-- `telemetry_standard.py`: builds the standard JSON and calculates the window
-  averages.
-- `virtual_lora.py`: simulates the LoRa link used during disconnection.
-- `mock_backend/fastapi_app.py`: local FastAPI endpoint for testing.
+- `simulator/app/datos`: generación de los cuatro sensores y comunicación con cada bridge.
+- `simulator/app/negocio`: ciclo de simulación, anomalías y controles.
+- `simulator/app/presentacion`: dashboard, imágenes, GIF y modelo 3D.
+- `bridge/app/datos`: SQLite y canal LoRa virtual.
+- `bridge/app/negocio`: agregación JSON 2.0, cola pendiente, REST y decisión de contingencia.
+- `bridge/app/presentacion`: API de control y consulta del bridge.
+- `brigadist-receiver`: emulador para la demostración y firmware base para el Heltec.
+- `protocol-contract`: formato binario que comparten el bridge y el receptor.
 
-## Install
+El mismo código del bridge se inicia dos veces. Cada ejecución representa una Raspberry Pi y mantiene su propia base SQLite.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-```
+## Ejecutar mi versión completa
 
-## Run the local test
-
-Start the mock backend:
+Desde esta carpeta:
 
 ```powershell
-python -m uvicorn mock_backend.fastapi_app:app --host 127.0.0.1 --port 8000
+python start_operational.py
 ```
 
-In another terminal, start the bridge:
+También se puede abrir `INICIAR_SIMULATOR.bat`.
+
+Direcciones que uso en local:
+
+- Dashboard: `http://127.0.0.1:8982`
+- Bridge del piso 1: `http://127.0.0.1:8991`
+- Bridge del piso 2: `http://127.0.0.1:8992`
+- Receptor del brigadista: `http://127.0.0.1:8993`
+
+Para probar con un backend local agrego su dirección:
 
 ```powershell
-python .\bridge\bridge_service.py `
-  --api-url "http://127.0.0.1:8000" `
-  --listen-port 8766 `
-  --data-dir "data_bridge"
+python start_operational.py --backend-url http://127.0.0.1:8000
 ```
 
-In a third terminal, start the simulator:
+## Flujo que estoy representando
+
+```text
+Sensores -> Bridge Raspberry Pi 5
+              |-> SQLite/microSD
+              |-> REST/backend
+              `-> LoRa/SX1262 -> receptor Heltec del brigadista
+```
+
+Los sensores solo producen y envían lecturas. El bridge es quien valida, calcula los resúmenes, forma el JSON 2.0 y guarda la cola. Si una emergencia no recibe confirmación REST, envío una trama LoRa compacta al brigadista. Ese ACK de radio no borra el pendiente del backend; el JSON queda guardado hasta recuperar la conexión.
+
+## Pruebas
 
 ```powershell
-python .\mqtt_sensor_simulator.py `
-  --bridge-url "http://127.0.0.1:8766" `
-  --interval 30 `
-  --data-dir "data_sensor_simulator"
+cd bridge
+python -m pytest tests -q
+
+cd ..\simulator
+python -m pytest tests -q
+
+cd ..\brigadist-receiver\emulator
+python -m pytest tests -q
 ```
 
-The simulator sends raw readings to `POST /v1/readings` on the bridge. The
-bridge stores the readings in SQLite, calculates the aggregate and sends new
-data through REST. Pending data is kept locally for MQTT recovery. LoRa is
-used for the emergency summary when the network is unavailable.
-
-Do not commit passwords, tokens, virtual environments or generated databases.
+Estas pruebas revisan la generación de sensores, la cola local, la recuperación en orden, el aislamiento de bridges y la autenticación de la trama LoRa. Los archivos generados durante la ejecución quedan en `runtime/` y no se suben al repositorio.
