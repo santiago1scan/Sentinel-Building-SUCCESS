@@ -1,0 +1,120 @@
+.alertList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alertGroup {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border-left: 4px solid var(--status-warning);
+}
+
+.alertGroup[data-severity="alert"] {
+  border-left-color: var(--status-alert);
+}
+
+/* Atendida: sigue visible mientras la condición continúe, pero ya no es roja. */
+.alertGroup[data-attended] {
+  border-left-color: var(--status-off);
+}
+
+.alertGroup[data-attended] .groupHead {
+  color: var(--text);
+}
+
+.alertGroup[data-attended] .tag {
+  color: var(--text-muted);
+}
+
+.groupHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--status-alert-text);
+  font-weight: bold;
+}
+
+.groupState {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--text-muted);
+}
+
+.sensorList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sensorCode {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sensorRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--status-alert-text);
+}
+
+.tag[data-tone="fault"] {
+  color: var(--status-warning-text);
+}
+
+.tag[data-tone="notice"] {
+  color: var(--text);
+}
+
+/* Toda la alerta es clicable: el enlace del título se extiende sobre la fila. */
+.groupLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.groupLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+}
+
+.groupLink:hover,
+.groupLink:focus-visible {
+  text-decoration: underline;
+}
+
+.alertGroup[data-link]:hover {
+  box-shadow: 0 0 0 2px var(--accent-text);
+}
+
+/* El botón queda por encima del enlace extendido para seguir atendiendo sin navegar. */
+.handleButton {
+  position: relative;
+  z-index: 1;
+}

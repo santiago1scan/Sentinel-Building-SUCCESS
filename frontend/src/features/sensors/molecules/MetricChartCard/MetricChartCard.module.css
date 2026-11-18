@@ -67,3 +67,24 @@
 .table th {
   background: var(--surface-2);
 }
+
+/* Afectada por una alerta del nodo: roja (el icono y el texto del aviso no dependen solo del color). */
+.card[data-alert] {
+  border: 2px solid var(--status-alert);
+  background: var(--status-alert-bg);
+}
+
+.card[data-alert] .title {
+  color: var(--status-alert-text);
+}
+
+.alertBadge {
+  display: inline-block;
+  margin: 0 0 4px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--status-alert);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: bold;
+}

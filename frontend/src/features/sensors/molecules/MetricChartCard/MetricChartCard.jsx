@@ -33,9 +33,14 @@ function MetricChartCard({ group }) {
     .slice(0, 20);
 
   return (
-    <article className={styles.card}>
+    <article className={styles.card} data-alert={group.alert ? group.alert.tone : undefined}>
       <header className={styles.header}>
         <div>
+          {group.alert && (
+            <p className={styles.alertBadge}>
+              <span aria-hidden="true">⚠</span> {group.alert.label}
+            </p>
+          )}
           <h3 className={styles.title}>{title}</h3>
           <p className={styles.subtitle}>
             {group.type?.name ?? "Tipo desconocido"} · {group.count} lecturas

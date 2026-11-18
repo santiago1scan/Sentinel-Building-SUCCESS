@@ -37,6 +37,7 @@
   --s-text: var(--status-connected-text);
 }
 
+.card[data-status="attended"],
 .card[data-status="off"] {
   --s: var(--status-off);
   --s-bg: var(--status-off-bg);
@@ -80,55 +81,4 @@
   font-weight: bold;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
-}
-
-.alertList {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.alertItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--status-alert-text);
-  font-weight: bold;
-}
-
-.code {
-  font-weight: normal;
-  color: var(--text-muted);
-  font-family: monospace;
-  overflow-wrap: anywhere;
-}
-
-.attended {
-  color: var(--status-connected-text);
-  white-space: nowrap;
-}
-
-.handleButton {
-  padding: 6px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: bold;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.handleButton:disabled {
-  opacity: 0.6;
-  cursor: wait;
 }

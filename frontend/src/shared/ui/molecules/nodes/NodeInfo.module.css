@@ -9,6 +9,13 @@
   min-width: 0;
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .name {
   margin: 0;
   font-size: 15px;
@@ -32,4 +39,22 @@
   font-weight: bold;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+
+/* Con alerta: el mismo color que el estado en la lista de nodos con alertas. */
+.node[data-status="alert"] {
+  border: 2px solid var(--status-alert);
+  background: var(--status-alert-bg);
+  color: var(--status-alert-text);
+}
+
+.node[data-status="warning"] {
+  border: 2px solid var(--status-warning);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+
+.node[data-status] .details dt {
+  color: inherit;
+  opacity: 0.8;
 }

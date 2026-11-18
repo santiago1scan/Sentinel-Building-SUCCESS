@@ -66,3 +66,35 @@ export function groupReadings(readings, sensors, sensorTypes) {
     })
     .sort((a, b) => a.sensorId - b.sensorId || (a.metricId ?? 0) - (b.metricId ?? 0));
 }
+
+/** Avisos técnicos que son una falla del sensor (el resto es un aviso, como batería baja). */
+const FAULT_CODES = new Set(["SENSOR_STUCK", "SENSOR_IMPOSSIBLE"]);
+
+/**
+ * Marca las gráficas que tienen una alerta visible del nodo y las sube al principio.
+ *
+ * Una gráfica (sensor + variable) está afectada si alguna alerta es de ese sensor y de esa variable (o del
+ * sensor completo, sin variable). `alert` queda con {label, tone, live}, o null si no está afectada. Fuera de
+ * rango va antes que una falla; dentro de cada grupo se conserva el orden original.
+ */
+export function markAffected(groups, alerts = []) {
+  const rank = { range: 0, fault: 1, notice: 2 };
+  const marked = groups.map((group, index) => {
+    const matches = alerts.filter(
+      (alert) => alert.sensor_id === group.sensorId && (alert.metric_id == null || alert.metric_id === group.metricId),
+    );
+    if (matches.length === 0) return { group: { ...group, alert: null }, index, rank: 3 };
+
+    const outOfRange = matches.some((alert) => alert.alert_type === "out_of_range");
+    const fault = matches.some((alert) => FAULT_CODES.has(alert.alert_code));
+    const tone = outOfRange ? "range" : fault ? "fault" : "notice";
+    const label = { range: "Fuera de rango", fault: "Fallando", notice: "Con aviso" }[tone];
+    return {
+      group: { ...group, alert: { label, tone, live: matches.some((alert) => !alert.ended_at) } },
+      index,
+      rank: rank[tone],
+    };
+  });
+  return marked.sort((a, b) => a.rank - b.rank || a.index - b.index).map((item) => item.group);
+}
+

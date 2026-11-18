@@ -1,16 +1,13 @@
 import NodeStatusBadge from "../../atoms/nodes/NodeStatusBadge";
+import NodeAlerts from "./NodeAlerts";
 import styles from "./NodeCard.module.css";
 
-const TYPE_LABEL = {
-  out_of_range: "Fuera de rango",
-  technical: "Aviso técnico",
-};
-
 /**
- * Tarjeta de un nodo sensor. Su color de fondo y de borde sale del estado,
- * para identificarlo de un vistazo. Lista sus alertas abiertas con acción para atenderlas.
+ * Tarjeta de un nodo sensor. Su color de fondo y de borde sale del estado, para identificarlo de un
+ * vistazo. Muestra UNA alerta por categoría (temperatura, movimiento, energía…) y, debajo, qué sensores
+ * están fuera de rango o fallando; se atiende la categoría completa. `alertGroups` sale de groupAlerts.
  */
-function NodeCard({ node, status, openAlerts = [], handling = {}, onHandle = () => {} }) {
+function NodeCard({ node, status, alertGroups = [], handling = {}, onHandle = () => {} }) {
   return (
     <article className={styles.card} data-status={status}>
       <header className={styles.header}>
@@ -33,35 +30,12 @@ function NodeCard({ node, status, openAlerts = [], handling = {}, onHandle = () 
         </div>
       </dl>
 
-      {openAlerts.length > 0 && (
-        <ul className={styles.alertList} aria-label="Alertas del nodo">
-          {openAlerts.map((alert) => {
-            const attended = Boolean(alert.handled_by_user_id);
-            const busy = Boolean(handling[alert.alert_id]);
-            return (
-              <li key={alert.alert_id} className={styles.alertItem}>
-                <span>
-                  <span aria-hidden="true">⚠</span>{" "}
-                  {TYPE_LABEL[alert.alert_type] ?? alert.alert_type}
-                  <span className={styles.code}> · {alert.alert_code}</span>
-                </span>
-                {attended ? (
-                  <span className={styles.attended}>✓ Atendida</span>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.handleButton}
-                    disabled={busy}
-                    onClick={() => onHandle(alert.alert_id)}
-                  >
-                    {busy ? "Guardando…" : "Marcar atendida"}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <NodeAlerts
+        groups={alertGroups}
+        handling={handling}
+        onHandle={onHandle}
+        nodeHref={`/panel/nodes/${node.node_id}`}
+      />
     </article>
   );
 }

@@ -5,13 +5,18 @@ import { zonesService } from "../../shared/services/zonesService";
 import { floorsService } from "../../features/floors/services/floorsService";
 import { nodesService } from "../../shared/services/nodesService";
 import { ApiError } from "../../shared/services/httpClient";
+import { useAlertedNodes } from "../../features/nodes/hooks/useAlertedNodes";
 import PendingRegistrations from "../../features/buildings/organisms/PendingRegistrations/PendingRegistrations";
 import FloorsGrid from "../../features/floors/organisms/FloorsGrid/FloorsGrid";
 import styles from "./BuildingDetailPage.module.css";
 
-/** Visualiza un edificio: nombre y dirección en grande, y sus pisos con sus zonas en una grilla. */
+/**
+ * Visualiza un edificio: nombre y dirección en grande, y sus pisos con sus zonas en una grilla. Un nodo con
+ * una alerta abierta se muestra en rojo (o en ámbar si solo tiene avisos técnicos), en vivo.
+ */
 function BuildingDetailPage() {
   const { buildingId } = useParams();
+  const { statusByNode } = useAlertedNodes();
   const [state, setState] = useState({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -54,7 +59,7 @@ function BuildingDetailPage() {
   // Nodos agrupados por zona: cada zona muestra los suyos.
   const nodesByZone = {};
   for (const node of nodes) {
-    (nodesByZone[node.zone_id] ??= []).push(node);
+    (nodesByZone[node.zone_id] ??= []).push({ ...node, alertStatus: statusByNode[node.node_id] ?? null });
   }
 
   return (

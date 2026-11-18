@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, it, expect } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import MetricChartCard from "./MetricChartCard";
 
 const series = [{ id: "avg", label: "Promedio", points: [{ x: Date.UTC(2026, 10, 16, 10), y: 21.5 }] }];
@@ -21,6 +21,8 @@ function group(overrides = {}) {
 }
 
 describe("MetricChartCard", () => {
+  afterEach(() => cleanup());
+
   it("titula con el nombre de la métrica, el sensor y la unidad del catálogo", () => {
     render(<MetricChartCard group={group()} />);
 
@@ -33,4 +35,21 @@ describe("MetricChartCard", () => {
 
     expect(screen.getByRole("heading", { name: "métrica #5 · BME688-NODE-1" })).toBeTruthy();
   });
+
+  it("una gráfica afectada por una alerta se marca en rojo y lo dice con texto", () => {
+    const { container } = render(
+      <MetricChartCard group={group({ alert: { label: "Fuera de rango", tone: "range", live: true } })} />,
+    );
+
+    expect(screen.getByText("Fuera de rango")).toBeTruthy();
+    expect(container.querySelector("article").getAttribute("data-alert")).toBe("range");
+  });
+
+  it("una gráfica sin alerta no se marca", () => {
+    const { container } = render(<MetricChartCard group={group({ alert: null })} />);
+
+    expect(screen.queryByText("Fuera de rango")).toBeNull();
+    expect(container.querySelector("article").hasAttribute("data-alert")).toBe(false);
+  });
 });
+

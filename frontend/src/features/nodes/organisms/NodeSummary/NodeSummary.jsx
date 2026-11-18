@@ -2,7 +2,7 @@ import StatTile from "../../molecules/StatTile/StatTile";
 import { formatDuration } from "../../nodeMetrics";
 import styles from "./NodeSummary.module.css";
 
-/** Encabezado del nodo y sus datos resumidos: conexión, sensores, lecturas, IP y almacenamiento. */
+/** Encabezado del nodo y sus datos resumidos: conexión, sensores, lecturas y fecha de registro. */
 function NodeSummary({ node, sensorCount, readingCount, connectivity }) {
   return (
     <>
@@ -30,11 +30,6 @@ function NodeSummary({ node, sensorCount, readingCount, connectivity }) {
         />
         <StatTile label="Sensores" value={sensorCount} />
         <StatTile label="Lecturas recibidas" value={readingCount} />
-        <StatTile label="IP" value={node.ip_address ?? "Sin IP"} />
-        <StatTile
-          label="Almacenamiento local"
-          value={node.local_storage_mb != null ? `${node.local_storage_mb} MB` : "—"}
-        />
         <StatTile label="Registrado" value={new Date(node.registered_at).toLocaleDateString("es")} />
       </dl>
     </>

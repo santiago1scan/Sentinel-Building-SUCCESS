@@ -78,10 +78,12 @@ services:
       - sentinel-net
     # Tras migrar, siembra el edificio de demo (Sentinel Building, 2 pisos, 1 zona por piso): sin
     # edificio ni zona no se puede registrar ningún nodo. Es idempotente; en producción se desactiva
-    # con SEED_DEMO_BUILDING=false.
+    # con SEED_DEMO_BUILDING=false. También crea en app_user los correos de FIREBASE_ADMIN_EMAILS:
+    # sin ellos, "Marcar atendida" responde 403 (la alerta guarda quién la atendió).
     command: >
       sh -c "alembic upgrade head &&
       if [ \"$${SEED_DEMO_BUILDING:-true}\" = true ]; then python -m scripts.seed_building; fi &&
+      python -m scripts.seed_admin_users &&
       uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
 
   monolito-consulta:

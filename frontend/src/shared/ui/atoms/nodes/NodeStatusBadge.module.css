@@ -24,6 +24,7 @@
   background: var(--status-connected);
 }
 
+.badge[data-status="attended"],
 .badge[data-status="off"] {
   background: var(--status-off);
 }

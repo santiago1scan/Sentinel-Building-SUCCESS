@@ -22,3 +22,47 @@
   color: var(--status-alert-text);
   font-weight: bold;
 }
+
+.notice {
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* La misma presentación que la tarjeta del nodo en /panel: borde y fondo del estado más severo. */
+.alerts {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid var(--status-warning);
+  border-radius: 13px;
+  background: var(--status-warning-bg);
+  box-shadow: var(--shadow-card);
+}
+
+.alerts[data-status="alert"] {
+  border-color: var(--status-alert);
+  background: var(--status-alert-bg);
+}
+
+.alertsTitle {
+  margin: 0;
+  font-size: 18px;
+  color: var(--status-warning-text);
+}
+
+.alerts[data-status="alert"] .alertsTitle {
+  color: var(--status-alert-text);
+}
+
+/* Todas atendidas: la condición puede seguir, pero ya no pide acción. */
+.alerts[data-status="attended"] {
+  border-color: var(--status-off);
+  background: var(--status-off-bg);
+}
+
+.alerts[data-status="attended"] .alertsTitle {
+  color: var(--status-off-text);
+}

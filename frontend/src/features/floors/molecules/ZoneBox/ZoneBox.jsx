@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import NodeInfo from "../../../../shared/ui/molecules/nodes/NodeInfo";
 import styles from "./ZoneBox.module.css";
 
-/** Una zona del piso: su nombre y los nodos que están en ella. */
+/** Una zona del piso: su nombre y los nodos que están en ella. Un nodo con `alertStatus` se muestra con alerta. */
 function ZoneBox({ zone, nodes }) {
   return (
     <section className={styles.zone} aria-label={`Zona ${zone.name}`}>
@@ -16,7 +16,7 @@ function ZoneBox({ zone, nodes }) {
           {nodes.map((node) => (
             <li key={node.node_id}>
               <Link to={`/panel/nodes/${node.node_id}`} className={styles.nodeLink} aria-label={`Ver métricas de ${node.name}`}>
-                <NodeInfo node={node} />
+                <NodeInfo node={node} status={node.alertStatus ?? null} />
               </Link>
             </li>
           ))}

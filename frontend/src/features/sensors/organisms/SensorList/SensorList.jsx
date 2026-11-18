@@ -1,6 +1,6 @@
 import styles from "./SensorList.module.css";
 
-/** Sensores de un nodo: código, ID, tipo y conexión. `sensorTypes` rotula el tipo de cada uno. */
+/** Sensores de un nodo: código, ID y tipo. `sensorTypes` rotula el tipo de cada uno. */
 function SensorList({ sensors, sensorTypes }) {
   const typeName = (id) => sensorTypes.find((type) => type.sensor_type_id === id)?.name ?? `Tipo #${id}`;
 
@@ -18,10 +18,6 @@ function SensorList({ sensors, sensorTypes }) {
               <strong>{sensor.code}</strong>
               <span>
                 ID {sensor.sensor_id} · {typeName(sensor.sensor_type_id)}
-              </span>
-              <span>
-                {sensor.connection_type ?? "Sin conexión"}
-                {sensor.connection_address ? ` · ${sensor.connection_address}` : ""}
               </span>
             </li>
           ))}

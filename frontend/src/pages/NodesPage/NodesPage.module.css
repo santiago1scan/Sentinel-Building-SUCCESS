@@ -46,6 +46,7 @@
   --s-text: var(--status-connected-text);
 }
 
+.summaryItem[data-status="attended"],
 .summaryItem[data-status="off"] {
   --s: var(--status-off);
   --s-bg: var(--status-off-bg);

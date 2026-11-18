@@ -1,31 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { nodesService } from "../../shared/services/nodesService";
 import { alertsService } from "../../shared/services/alertsService";
+import { sensorsService, sensorTypesService } from "../../shared/services/readingsService";
+import { buildCatalog, groupAlerts } from "../../features/nodes/alertGroups";
+import { applyAlert, isVisible } from "../../features/nodes/alertState";
 import TextInput from "../../shared/ui/atoms/inputs/TextInput";
 import SelectInput from "../../shared/ui/atoms/selects/SelectInput";
 import NodeCard from "../../shared/ui/molecules/nodes/NodeCard";
 import { NODE_STATUS, deriveNodeStatus } from "../../shared/ui/atoms/nodes/nodeStatus";
 import styles from "./NodesPage.module.css";
 
-/** Solo se muestran los nodos con alertas: estos dos estados. */
-const ALERT_STATUSES = ["alert", "warning"];
+/** Solo se muestran los nodos con alertas: estos estados (los de «atendida» ya no piden acción). */
+const ALERT_STATUSES = ["alert", "warning", "attended"];
 const RETRY_MS = 5000;
-
-/**
- * Misma regla que consulta y escucha: visible mientras no haya terminado O mientras nadie la haya atendido.
- * Los eventos del stream ya traen `visible`; se calcula también aquí para mantener la misma regla.
- */
-function isVisible(alert) {
-  return alert.visible ?? !(alert.ended_at && alert.handled_by_user_id);
-}
-
-/** Aplica un estado de alerta a la lista: se muestra si es visible, si no se quita (nunca se borra del backend). */
-function applyAlert(alerts, alert) {
-  const next = { ...alerts };
-  if (isVisible(alert)) next[alert.alert_id] = alert;
-  else delete next[alert.alert_id];
-  return next;
-}
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "Todos los estados" },
@@ -40,6 +27,9 @@ const STATUS_FILTER_OPTIONS = [
 function NodesPage() {
   const [loadState, setLoadState] = useState({ status: "loading", error: "" });
   const [nodes, setNodes] = useState([]);
+  // Sensores y tipos con sus variables: ponen nombre a lo que está fuera de rango. Si no cargan,
+  // las alertas se agrupan igual y se muestran con los ids.
+  const [catalog, setCatalog] = useState(() => buildCatalog());
   const [alerts, setAlerts] = useState({});
   const [streamDown, setStreamDown] = useState(false);
   const [alertsReady, setAlertsReady] = useState(false);
@@ -95,11 +85,15 @@ function NodesPage() {
         },
       });
 
-      nodesService
-        .list()
-        .then((nodeList) => {
+      Promise.all([
+        nodesService.list(),
+        sensorsService.list({ limit: 1000 }).catch(() => []),
+        sensorTypesService.list().catch(() => []),
+      ])
+        .then(([nodeList, sensorList, typeList]) => {
           if (!active) return;
           setNodes(nodeList);
+          setCatalog(buildCatalog(sensorList, typeList));
           setLoadState({ status: "ready", error: "" });
         })
         .catch(() => {
@@ -118,21 +112,22 @@ function NodesPage() {
     };
   }, [reloadKey]);
 
-  async function handleAlert(alertId) {
+  /** Atiende todas las alertas pendientes de la categoría: una sola acción para todo el grupo. */
+  async function handleGroup(group) {
     setActionError("");
-    setHandling((prev) => ({ ...prev, [alertId]: true }));
-    try {
-      const updated = await alertsService.handle(alertId);
-      setAlerts((prev) => applyAlert(prev, updated));
-    } catch {
+    setHandling((prev) => ({ ...prev, [group.key]: true }));
+    const results = await Promise.allSettled(group.unhandled.map((alert) => alertsService.handle(alert.alert_id)));
+    // Lo que sí se pudo atender se refleja ya; si algo falló, la categoría sigue pendiente.
+    setAlerts((prev) => results.reduce(
+      (next, result) => (result.status === "fulfilled" ? applyAlert(next, result.value) : next), prev));
+    if (results.some((result) => result.status === "rejected")) {
       setActionError("No pudimos marcar la alerta como atendida. Intenta de nuevo.");
-    } finally {
-      setHandling((prev) => {
-        const next = { ...prev };
-        delete next[alertId];
-        return next;
-      });
     }
+    setHandling((prev) => {
+      const next = { ...prev };
+      delete next[group.key];
+      return next;
+    });
   }
 
   function reload() {
@@ -161,9 +156,11 @@ function NodesPage() {
         ip_address: null,
       },
       openAlerts,
+      // Una alerta viva por nodo y categoría hasta que se atienda.
+      alertGroups: groupAlerts(openAlerts, catalog),
       status: deriveNodeStatus({ isConnected: false, openAlerts }),
     }));
-  }, [alerts, nodes]);
+  }, [alerts, nodes, catalog]);
 
   const counts = useMemo(() => {
     const result = Object.fromEntries(ALERT_STATUSES.map((key) => [key, 0]));
@@ -259,14 +256,14 @@ function NodesPage() {
         </p>
       ) : (
         <ul className={styles.grid}>
-          {visible.map(({ node, status, openAlerts }) => (
+          {visible.map(({ node, status, alertGroups }) => (
             <li key={node.node_id}>
               <NodeCard
                 node={node}
                 status={status}
-                openAlerts={openAlerts}
+                alertGroups={alertGroups}
                 handling={handling}
-                onHandle={handleAlert}
+                onHandle={handleGroup}
               />
             </li>
           ))}
