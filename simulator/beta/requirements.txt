@@ -1,4 +1,4 @@
 # La simulación usa solo la biblioteca estándar de Python.
 # PyJWT[crypto] verifica los ID tokens de Firebase del login (/login y /perfil).
-# React y model-viewer los carga el dashboard desde sus CDN.
+# React lo carga el dashboard desde su CDN.
 PyJWT[crypto]>=2.8,<3

@@ -20,7 +20,7 @@ PRUEBAS
   Bridge isolation, Immediate anomaly y Recovery.
 
 NOTAS
-- Las imagenes, GIF, logos y el modelo 3D estan dentro de dashboard/assets.
-- Se necesita Internet para cargar React y el visor del modelo 3D desde CDN.
+- Las imagenes, GIF y logos estan dentro de dashboard/assets.
+- Se necesita Internet para cargar React desde CDN.
 - Sin backend, los paquetes quedan en Pending queue. Es el comportamiento esperado.
 - No compartir tokens del backend dentro de esta carpeta.

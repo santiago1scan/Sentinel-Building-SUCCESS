@@ -17,14 +17,14 @@ El resumen del trabajo de integración de ambos simuladores está en
 - Rotación de resúmenes entregados sin eliminar mensajes pendientes.
 - Sincronización REST opcional y fallback LoRa simulado.
 - Reintentos cronológicos y deduplicación por `message_uid`.
-- Dashboard React local con controles, imágenes, GIF y modelo 3D.
+- Dashboard React local con controles, imágenes y GIF.
 - Pruebas automáticas de almacenamiento, rotación y recuperación.
 
 ## Requisitos
 
 - Python 3.11 o superior.
 - Navegador moderno.
-- Conexión a Internet para cargar React y `model-viewer` desde CDN.
+- Conexión a Internet para cargar React desde CDN.
 - Para el mock SQLite, FastAPI y Uvicorn; para MQTT, `paho-mqtt` es opcional.
   Las dependencias compartidas están en `simulator\requirements.txt`.
 
@@ -65,9 +65,9 @@ Después abra `http://127.0.0.1:8782`. Para detenerla:
 docker compose down
 ```
 
-Las imágenes, GIF, logos institucionales, fotografías de sensores y el modelo
-3D se incluyen en `dashboard/assets`. React, Babel y el componente del visor 3D
-se cargan desde CDN, por lo que el panel requiere conexión a Internet.
+Las imágenes, GIF, logos institucionales y fotografías de sensores se incluyen
+en `dashboard/assets`. React y Babel se cargan desde CDN, por lo que el panel
+requiere conexión a Internet.
 
 ## Ejecutar pruebas
 
