@@ -60,3 +60,10 @@ La versión Beta autocontenida está en [`beta/`](beta/README.md). Incluye dos
 bridges independientes, almacenamiento SQLite, cola de sincronización, respaldo
 LoRa, contrato JSON 2.0, dashboard React y pruebas automatizadas. Puede
 ejecutarse sin reemplazar los componentes anteriores de esta carpeta.
+
+## Beta y panel de escenarios con el mock SQLite
+
+Para iniciar ambos dashboards y enviar sus agregados al mismo mock local,
+consulta las [instrucciones del panel de escenarios](beta/dashboard_scenario/README_ESCENARIOS.md).
+El resumen detallado de archivos modificados y del flujo de datos está en
+[`RESUMEN_CAMBIOS.md`](RESUMEN_CAMBIOS.md).

@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     ports:
       - "8782:8782"
-      - "8790:8790"
+      - "8792:8792"
     volumes:
       - ./data:/app/data
     environment:

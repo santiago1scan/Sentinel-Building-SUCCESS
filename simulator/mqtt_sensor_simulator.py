@@ -690,6 +690,9 @@ def command_loop(state: dict[str, Any], con: sqlite3.Connection, stop: threading
                         state["wake_event"].set()
                     else:
                         state["anomalies"][node_id].discard(sensor)
+                        # Publico también el estado normal sin esperar el ciclo
+                        # periódico para que el backend limpie la alarma.
+                        state["wake_event"].set()
                     print(f"{parts[0]} -> {node_id} / {sensor}")
                 else:
                     print("Nodo o sensor no reconocido")

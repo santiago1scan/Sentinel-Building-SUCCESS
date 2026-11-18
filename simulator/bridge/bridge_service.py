@@ -225,12 +225,45 @@ class BridgeRuntime:
             with urllib.request.urlopen(request, timeout=self.args.api_timeout) as response:
                 body = response.read().decode("utf-8")
                 if 200 <= response.status < 300:
-                    self.store.mark_sent(uid, "sent_rest", body)
-                    return True
+                    try:
+                        acknowledgement = json.loads(body)
+                    except json.JSONDecodeError:
+                        acknowledgement = None
+                    expected_readings = sum(
+                        len(bridge.get("sensors", []))
+                        for bridge in payload.get("bridges", [])
+                    )
+                    readings_created = (
+                        acknowledgement.get("readings_created")
+                        if isinstance(acknowledgement, dict)
+                        else None
+                    )
+                    if (
+                        isinstance(acknowledgement, dict)
+                        and acknowledgement.get("message_uid") == uid
+                        and acknowledgement.get("errors") == []
+                        and isinstance(readings_created, int)
+                        and not isinstance(readings_created, bool)
+                        and readings_created >= expected_readings
+                    ):
+                        self.store.mark_sent(uid, "sent_rest", body)
+                        return True
+                    self.store.mark_attempt(uid, f"Invalid backend acknowledgement: {body}")
+                    return False
                 self.store.mark_attempt(uid, f"HTTP {response.status}: {body}")
         except (OSError, urllib.error.HTTPError, urllib.error.URLError) as exc:
             self.store.mark_attempt(uid, str(exc))
         return False
+
+    def _send_rest_pending(self) -> list[str]:
+        if not self.args.api_url:
+            return []
+        sent_uids = []
+        for uid, encoded, _ in self.store.pending():
+            if not self._send_rest(uid, json.loads(encoded)):
+                break
+            sent_uids.append(uid)
+        return sent_uids
 
     def _send_mqtt_pending(self) -> int:
         if not self.mqtt_enabled or self.mqtt_client is None or not self.mqtt_client.is_connected():
@@ -278,7 +311,8 @@ class BridgeRuntime:
             self.args.node_catalog,
         )
         self.store.save_aggregate(aggregate)
-        realtime_sent = self._send_rest(aggregate["message_uid"], aggregate)
+        rest_sent_uids = self._send_rest_pending()
+        realtime_sent = aggregate["message_uid"] in rest_sent_uids
         mqtt_catch_up = self._send_mqtt_pending()
         lora_sent = False
         if not realtime_sent and not mqtt_catch_up:
@@ -288,6 +322,7 @@ class BridgeRuntime:
             "raw_inserted": inserted,
             "message_uid": aggregate["message_uid"],
             "rest_realtime": realtime_sent,
+            "rest_catch_up": len(rest_sent_uids) - int(realtime_sent),
             "mqtt_catch_up": mqtt_catch_up,
             "lora_summary": lora_sent,
             "storage": self.store.counts(),
@@ -357,10 +392,13 @@ def main() -> None:
     parser.add_argument("--building-code", default="SB-001")
     parser.add_argument("--interval", type=float, default=30.0)
     parser.add_argument("--data-dir", default="data_bridge")
-    parser.add_argument("--api-url", default=os.getenv("SENTINEL_API_URL"))
+    parser.add_argument(
+        "--api-url",
+        default=os.getenv("SENTINEL_API_URL") or "http://127.0.0.1:8000",
+    )
     parser.add_argument(
         "--api-path",
-        default=os.getenv("SENTINEL_API_PATH", "/api/v1/telemetry/aggregate"),
+        default=os.getenv("SENTINEL_API_PATH") or "/api/v1/telemetry/aggregate",
     )
     parser.add_argument("--api-token", default=os.getenv("SENTINEL_API_TOKEN"))
     parser.add_argument("--api-timeout", type=float, default=10.0)

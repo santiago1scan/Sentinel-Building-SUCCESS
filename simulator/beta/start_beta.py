@@ -39,11 +39,15 @@ def main() -> None:
     parser.add_argument("--data-dir", default="data")
     parser.add_argument("--dashboard-port", type=int, default=8782)
     parser.add_argument("--dashboard-host", default="127.0.0.1")
-    parser.add_argument("--control-port", type=int, default=8790)
+    parser.add_argument("--control-port", type=int, default=8792)
     parser.add_argument("--control-host", default="127.0.0.1")
     parser.add_argument(
+        "--mock-backend-url",
+        default=os.getenv("SENTINEL_MOCK_BACKEND_URL") or "http://127.0.0.1:8000",
+    )
+    parser.add_argument(
         "--backend-url",
-        default=os.getenv("SENTINEL_BACKEND_URL"),
+        default=os.getenv("SENTINEL_BACKEND_URL") or "http://127.0.0.1:8000/api/v1",
     )
     parser.add_argument(
         "--node-token-floor-1",
@@ -81,8 +85,6 @@ def main() -> None:
         "--no-input",
     ]
     if args.backend_url:
-        if not args.node_token_floor_1 or not args.node_token_floor_2:
-            parser.error("backend-url requires a token for NODE-FLOOR-1 and NODE-FLOOR-2")
         simulator_command.extend(["--backend-url", args.backend_url])
 
     simulator_env = os.environ.copy()
@@ -104,6 +106,8 @@ def main() -> None:
         args.dashboard_host,
         "--control-url",
         f"http://127.0.0.1:{args.control_port}",
+        "--mock-backend-url",
+        args.mock_backend_url,
     ]
 
     # Tokens are inherited through the child environment instead of being

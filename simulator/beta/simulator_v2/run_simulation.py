@@ -169,7 +169,7 @@ def main() -> None:
     parser.add_argument("--storage-capacity-gb", type=float, default=128.0)
     parser.add_argument("--storage-limit-ratio", type=float, default=0.70)
     parser.add_argument("--control-host", default="127.0.0.1")
-    parser.add_argument("--control-port", type=int, default=8790)
+    parser.add_argument("--control-port", type=int, default=8792)
     parser.add_argument("--no-input", action="store_true")
     args = parser.parse_args()
     if args.window_seconds <= 0:
@@ -178,9 +178,6 @@ def main() -> None:
         parser.error("lora-loss-rate debe estar entre 0 y 1")
     if not 0 < args.storage_limit_ratio <= 1:
         parser.error("storage-limit-ratio debe estar entre 0 y 1")
-    if args.backend_url and (not args.node_token_floor_1 or not args.node_token_floor_2):
-        parser.error("backend-url requires one X-Node-Token for each floor")
-
     root = Path(args.data_dir)
     node_tokens = {
         "NODE-FLOOR-1": args.node_token_floor_1 or "",

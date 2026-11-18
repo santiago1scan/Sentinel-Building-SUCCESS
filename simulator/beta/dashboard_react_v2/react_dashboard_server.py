@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import urllib.error
 import urllib.request
@@ -78,9 +79,23 @@ def read_db(path: Path) -> dict:
         con.close()
 
 
+def read_shared_sensors(mock_backend_url: str) -> tuple[list[dict] | None, str | None]:
+    url = f"{mock_backend_url.rstrip('/')}/api/v1/sensors/latest"
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=2) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        return None, str(exc)
+    if not isinstance(payload, dict) or not isinstance(payload.get("sensors"), list):
+        return None, "Mock backend returned an invalid latest-sensors response"
+    return payload["sensors"], None
+
+
 class DashboardData:
-    def __init__(self, data_dir: Path) -> None:
+    def __init__(self, data_dir: Path, mock_backend_url: str) -> None:
         self.data_dir = data_dir
+        self.mock_backend_url = mock_backend_url
 
     def read(self) -> dict:
         bridges = [read_db(self.data_dir / "node-floor-1_summary.db"), read_db(self.data_dir / "node-floor-2_summary.db")]
@@ -91,7 +106,15 @@ class DashboardData:
         for payload in payloads:
             for bridge in payload.get("bridges", []):
                 for sensor in bridge.get("sensors", []):
-                    sensors.append({**sensor, "node": bridge.get("node_code"), "floor": bridge.get("floor")})
+                    sensors.append({
+                        **sensor,
+                        "node": bridge.get("node_code"),
+                        "floor": bridge.get("floor"),
+                        "source": "beta",
+                    })
+        shared_sensors, shared_backend_error = read_shared_sensors(self.mock_backend_url)
+        if shared_sensors is not None:
+            sensors = shared_sensors
         logs = []
         for db in bridges:
             logs.extend(db["logs"])
@@ -121,6 +144,11 @@ class DashboardData:
             "latest_payload": payloads[0] if payloads else {},
             "latest": latest_by_node,
             "sensors": sensors,
+            "shared_backend": {
+                "connected": shared_sensors is not None,
+                "url": self.mock_backend_url,
+                "detail": shared_backend_error,
+            },
             "logs": logs[:24],
             "response_counts": response_counts,
             "error_total": error_total,
@@ -194,9 +222,13 @@ def main() -> None:
     parser.add_argument("--data-dir", default="data_simulation_v2")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8782)
-    parser.add_argument("--control-url", default="http://127.0.0.1:8790")
+    parser.add_argument("--control-url", default="http://127.0.0.1:8792")
+    parser.add_argument(
+        "--mock-backend-url",
+        default=os.getenv("SENTINEL_MOCK_BACKEND_URL") or "http://127.0.0.1:8000",
+    )
     args = parser.parse_args()
-    Handler.data = DashboardData(Path(args.data_dir))
+    Handler.data = DashboardData(Path(args.data_dir), args.mock_backend_url)
     Handler.control_url = args.control_url.rstrip("/")
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"React dashboard ready | http://{args.host}:{args.port} | data={args.data_dir} | control={Handler.control_url}")

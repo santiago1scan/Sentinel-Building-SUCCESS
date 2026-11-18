@@ -4,6 +4,9 @@ Versión autocontenida de la simulación Beta de Sentinel Building. Esta carpeta
 no modifica el backend del equipo ni depende de las versiones anteriores del
 simulador.
 
+El resumen del trabajo de integración de ambos simuladores está en
+[`../RESUMEN_CAMBIOS.md`](../RESUMEN_CAMBIOS.md).
+
 ## Funciones implementadas
 
 - Dos bridges independientes: `NODE-FLOOR-1` y `NODE-FLOOR-2`.
@@ -22,24 +25,27 @@ simulador.
 - Python 3.11 o superior.
 - Navegador moderno.
 - Conexión a Internet para cargar React y `model-viewer` desde CDN.
-
-No se necesitan paquetes externos de Python para la versión actual.
+- Para el mock SQLite, FastAPI y Uvicorn; para MQTT, `paho-mqtt` es opcional.
+  Las dependencias compartidas están en `simulator\requirements.txt`.
 
 ## Inicio rápido
 
 Desde esta carpeta:
 
 ```powershell
-python start_beta.py
+python start_beta.py --control-port 8792
 ```
 
 El comando inicia:
 
-- Simulador y API de control: `http://127.0.0.1:8790`
-- Dashboard: `http://127.0.0.1:8782`
+- Dashboard principal: `http://127.0.0.1:8782`
+- Simulador y API de control: `http://127.0.0.1:8792`
 
 El navegador se abre automáticamente. Para detener ambos procesos, presione
 `Ctrl+C` en la terminal.
+
+El puerto de control `8792` evita el conflicto con el panel de escenarios,
+que utiliza `8790`.
 
 En Windows también puede iniciar toda la Beta haciendo doble clic en
 `INICIAR_BETA.bat`. La carpeta es portable: no contiene rutas absolutas del
@@ -69,26 +75,36 @@ se cargan desde CDN, por lo que el panel requiere conexión a Internet.
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-## Conectar un backend
+## Conectar el mock backend local
 
-El simulador funciona sin backend y usa el receptor LoRa local. Para una futura
-integración, ejecute el motor directamente con la URL base autorizada:
+El mock backend recibe los agregados de ambos simuladores y los guarda en
+SQLite (`simulator\data_api\api_received.db`). Inícialo primero en una terminal
+desde la raíz del proyecto:
 
 ```powershell
-$env:SENTINEL_NODE_TOKEN_FLOOR_1 = "token-del-nodo-1"
-$env:SENTINEL_NODE_TOKEN_FLOOR_2 = "token-del-nodo-2"
-python start_beta.py --backend-url "http://127.0.0.1:8089"
+Set-Location .\simulator
+py -m uvicorn mock_backend.fastapi_app:app --host 127.0.0.1 --port 8000
 ```
 
-El motor añade `/telemetry/aggregate`, envía un `X-Node-Token` diferente por
-bridge y conserva el contrato JSON 2.0. Un mensaje solo sale de la cola cuando
-el backend confirma el mismo `message_uid`, no reporta errores y registra todas
-las lecturas esperadas.
+En otra terminal, inicia la Beta. La URL predeterminada es
+`http://127.0.0.1:8000/api/v1`; también se puede indicar explícitamente:
 
-También puede copiar `.env.example` a `.env` y definir
-`SENTINEL_BACKEND_URL`. Los identificadores que el backend debe registrar y el
-formato exacto de la confirmación están documentados en
+```powershell
+Set-Location .\simulator\beta
+py .\start_beta.py --backend-url "http://127.0.0.1:8000/api/v1"
+```
+
+El motor añade `/telemetry/aggregate` y conserva el contrato JSON 2.0. Los
+tokens no son necesarios con el mock local. Un agregado solo sale de la cola
+cuando el mock confirma el mismo `message_uid` y todos sus sensores. Si el
+mock todavía no está disponible, los mensajes siguen pendientes en SQLite y
+se reintentan en orden al iniciar la simulación. El contrato está documentado en
 [`BACKEND_INTEGRATION.md`](BACKEND_INTEGRATION.md).
+
+El dashboard Beta consulta `GET /api/v1/sensors/latest` para mostrar el estado
+más reciente de ambas simulaciones. Las anomalías recientes de escenarios
+prevalecen sobre lecturas normales de Beta hasta que el escenario envíe valores
+normales; los datos con más de 90 segundos se marcan como obsoletos.
 
 ## Estructura
 
