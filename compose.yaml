@@ -59,6 +59,11 @@ services:
       # Stream de alertas (/alerts/stream) y marcado como atendida: ID token de Firebase.
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       FIREBASE_ADMIN_EMAILS: ${FIREBASE_ADMIN_EMAILS:-}
+      # Un nodo sin enviar más de este tiempo queda "desconectado" (cierra su sesión de conectividad)
+      # y abre la alerta NODE_SILENT. Los simuladores envían cada 30 s, así que 2 min basta; con un
+      # bridge real (resumen cada 30 min) el valor por defecto de la app es 35.
+      SILENCE_THRESHOLD_MINUTES: ${SILENCE_THRESHOLD_MINUTES:-2}
+      SILENCE_CHECK_SECONDS: ${SILENCE_CHECK_SECONDS:-30}
     ports:
       - "8089:8089"
     volumes:
@@ -71,8 +76,13 @@ services:
         condition: service_healthy
     networks:
       - sentinel-net
+    # Tras migrar, siembra el edificio de demo (Sentinel Building, 2 pisos, 1 zona por piso): sin
+    # edificio ni zona no se puede registrar ningún nodo. Es idempotente; en producción se desactiva
+    # con SEED_DEMO_BUILDING=false.
     command: >
-      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
+      sh -c "alembic upgrade head &&
+      if [ \"$${SEED_DEMO_BUILDING:-true}\" = true ]; then python -m scripts.seed_building; fi &&
+      uvicorn app.main:app --host 0.0.0.0 --port 8089 --reload"
 
   monolito-consulta:
     build:
@@ -176,8 +186,51 @@ services:
       SENTINEL_BRIDGE_URL: http://bridge:8766
       SENTINEL_INTERVAL: "30"
       SENTINEL_SIM_NODES: NODE-FLOOR-1,NODE-FLOOR-2
+      # Refleja en la simulación Beta las anomalías de este panel (fuego, sismo, falla de energía).
+      # Vacío desactiva el reflejo.
+      SENTINEL_BETA_URL: ${SENTINEL_BETA_URL:-http://beta:8792}
       # Arranca el ciclo de lecturas solo, como el simulador anterior.
       SENTINEL_AUTOSTART: "true"
+
+  # Simulación Beta (simulator/beta): dos bridges propios con SQLite, cola y respaldo LoRa.
+  # Envía sus resúmenes JSON 2.0 a escucha con el token de cada nodo.
+  # Dashboard en http://localhost:8782 · API de control en http://localhost:8792
+  beta:
+    build:
+      context: ./simulator/beta
+      dockerfile: Dockerfile
+    container_name: sentinel-beta
+    restart: unless-stopped
+    ports:
+      - "8782:8782"
+      - "8792:8792"
+    networks:
+      - sentinel-net
+    volumes:
+      - beta_data:/app/data
+    depends_on:
+      monolito-escucha:
+        condition: service_started
+      monolito-consulta:
+        condition: service_started
+    command: python -u start_beta.py --no-browser --dashboard-host 0.0.0.0 --control-host 0.0.0.0
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # start_beta.py agrega /telemetry/aggregate a esta URL base.
+      SENTINEL_BACKEND_URL: http://monolito-escucha:8089
+      # Los tokens del entorno son opcionales: el registro desde /perfil guarda el token de cada
+      # nodo en el volumen de Beta y ese token tiene prioridad.
+      SENTINEL_NODE_TOKENS: ${SENTINEL_NODE_TOKENS:-}
+      # Consulta recibe y aprueba el registro de cada nodo (POST /registrations).
+      SENTINEL_CONSULTA_URL: http://monolito-consulta:8089
+      # Login de Firebase de /login y /perfil (valores públicos del proyecto).
+      SENTINEL_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      SENTINEL_FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
+      SENTINEL_FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-}
+      SENTINEL_FIREBASE_APP_ID: ${FIREBASE_APP_ID:-}
+      SENTINEL_FIREBASE_MESSAGING_SENDER_ID: ${FIREBASE_MESSAGING_SENDER_ID:-}
+      SENTINEL_FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-}
+      SENTINEL_FIREBASE_ADMIN_EMAILS: ${FIREBASE_ADMIN_EMAILS:-}
 
   # Pruebas de integración: simulador → bridge → escucha, verificadas con consulta.
   # No se levanta con `up`. Ejecutar con:
@@ -215,6 +268,7 @@ services:
 volumes:
   postgres_data:
   bridge_data:
+  beta_data:
 
 networks:
   sentinel-net:

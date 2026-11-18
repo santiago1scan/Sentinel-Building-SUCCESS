@@ -56,6 +56,8 @@ export function groupReadings(readings, sensors, sensorTypes) {
         sensor: group.sensor,
         type: group.type,
         metricId: group.metricId,
+        // La métrica del catálogo (nombre, unidad y rango normal); null si el tipo no la describe.
+        metric: group.type?.metrics?.find((metric) => metric.metric_id === group.metricId) ?? null,
         singleMetric: metricsPerSensor.get(group.sensorId) === 1,
         series,
         count: all.length,

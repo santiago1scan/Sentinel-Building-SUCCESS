@@ -1,3 +1,4 @@
-# The current Beta uses only the Python standard library.
-# React and model-viewer are loaded by the dashboard from their CDNs.
-
+# La simulación usa solo la biblioteca estándar de Python.
+# PyJWT[crypto] verifica los ID tokens de Firebase del login (/login y /perfil).
+# React y model-viewer los carga el dashboard desde sus CDN.
+PyJWT[crypto]>=2.8,<3

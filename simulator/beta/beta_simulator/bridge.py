@@ -35,11 +35,24 @@ class SimulatedLoRa:
         return self.gateway.receive_lora(compact)
 
 
+def _lora_data(data: dict[str, Any], message_type: str) -> dict[str, Any]:
+    """La trama es pequeña: en un resumen solo viajan los promedios (y los booleanos).
+
+    El resumen completo (avg, max y min) sale por REST cuando vuelve la red; el backend deduplica
+    por message_uid.
+    """
+    if message_type != "half_hour_summary":
+        return data
+    return {key: value for key, value in data.items()
+            if not key.endswith(("__max", "__min"))}
+
+
 def compact_for_lora(payload: dict[str, Any]) -> dict[str, Any]:
     """Keep LoRa traffic small; the gateway reconstructs the v2 envelope."""
     bridge = payload["bridges"][0]
     return {
         "message_uid": payload["message_uid"],
+        "message_type": payload["message_type"],
         "building_code": payload["building_code"],
         "generated_at": payload["generated_at"],
         "sequence_number": payload["sequence_number"],
@@ -52,7 +65,7 @@ def compact_for_lora(payload: dict[str, Any]) -> dict[str, Any]:
                 {
                     "sensor_code": sensor["sensor_code"],
                     "sample_count": sensor["sample_count"],
-                    "data": sensor["data"],
+                    "data": _lora_data(sensor["data"], payload["message_type"]),
                 }
                 for sensor in bridge["sensors"]
             ],

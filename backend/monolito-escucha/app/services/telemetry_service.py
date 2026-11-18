@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analytics.alert_engine import BATTERY_LOW, ON_BATTERY_POWER, AlertEngine
+from app.analytics.connectivity import open_session as open_connectivity_session
 from app.analytics.metrics import parse_sensor_values
 from app.models.ingest_message import IngestMessage
 from app.models.reading import Reading
@@ -111,6 +112,7 @@ class TelemetryService:
         if node.last_signal_received_at is None or heard_at > node.last_signal_received_at:
             node.last_signal_received_at = heard_at
         await self.engine.on_node_heard(node.node_id, heard_at)
+        await open_connectivity_session(self.session, node.node_id, heard_at)
 
         for sensor_dto in bridge.sensors:
             try:

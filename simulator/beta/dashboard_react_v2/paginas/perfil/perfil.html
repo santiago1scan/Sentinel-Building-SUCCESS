@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101511">
+  <title>Sentinel Beta — Perfil y registro de nodos</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/paginas/perfil/perfil.css">
+</head>
+<body>
+  <main class="page">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">SB</div>
+      <div>
+        <p class="eyebrow">Beta</p>
+        <h1>Sentinel Building</h1>
+        <p class="topbar-subtitle">Perfil y registro de nodos</p>
+      </div>
+    </div>
+    <nav class="sesion" aria-label="Navegación">
+      <a class="dashboard-link" href="/">← Dashboard</a>
+      <button id="salir" class="button-danger" type="button">Cerrar sesión</button>
+    </nav>
+  </header>
+
+  <section aria-labelledby="cuenta-titulo">
+    <div class="section-heading">
+      <h2 id="cuenta-titulo">Mi cuenta</h2>
+      <p>Datos de tu sesión de Firebase</p>
+    </div>
+    <article class="tarjeta">
+      <div class="cuenta-cabecera">
+        <span id="avatar" class="avatar" aria-hidden="true">?</span>
+        <div>
+          <strong id="nombre">—</strong>
+          <div id="correo" class="usuario">—</div>
+        </div>
+      </div>
+      <dl class="datos">
+        <dt>Correo verificado</dt><dd id="verificado">—</dd>
+        <dt>Acceso al panel</dt><dd id="acceso">—</dd>
+      </dl>
+    </article>
+  </section>
+
+  <section aria-labelledby="registro-titulo">
+    <div class="section-heading">
+      <h2 id="registro-titulo">Registro del nodo</h2>
+      <p>Solicita el alta de cada nodo en el backend antes de enviar información</p>
+    </div>
+    <article class="tarjeta">
+      <div class="field">
+        <label for="nodo">Nodo</label>
+        <select id="nodo"></select>
+      </div>
+
+      <div class="sim-state">
+        <span id="registroPunto" class="status-dot" aria-hidden="true"></span>
+        <div>
+          <div id="registroTitulo" class="state-title">Comprobando…</div>
+          <div id="registroDetalle" class="state-detail" role="status"></div>
+        </div>
+      </div>
+
+      <dl class="datos">
+        <dt>Código del nodo</dt><dd id="nodoCodigo">—</dd>
+        <dt>Sensores</dt><dd id="sensoresNodo">—</dd>
+        <dt>Solicitud</dt><dd id="solicitudId">—</dd>
+        <dt>Vence</dt><dd id="solicitudVence">—</dd>
+      </dl>
+
+      <form id="registroForm" class="formulario" novalidate hidden>
+        <div class="field">
+          <label for="nombreNodo">Nombre del nodo</label>
+          <input id="nombreNodo" type="text" required maxlength="150" autocomplete="off" placeholder="Beta - Piso 1">
+        </div>
+        <div class="fila-dos">
+          <div class="field">
+            <label for="edificioId">ID del edificio</label>
+            <input id="edificioId" type="number" required min="1" step="1" inputmode="numeric">
+          </div>
+          <div class="field">
+            <label for="zonaId">ID de la zona</label>
+            <input id="zonaId" type="number" required min="1" step="1" inputmode="numeric">
+          </div>
+        </div>
+        <span class="field-help">Son los ids de la base del backend; la zona debe pertenecer al edificio. La solicitud incluye los 4 sensores del nodo.</span>
+        <button id="registroEnviar" class="button-primary" type="submit">Solicitar registro</button>
+      </form>
+
+      <p id="registroMensaje" class="mensaje" role="alert"></p>
+    </article>
+  </section>
+
+  <footer class="footer">
+    <span>Sentinel Building · SUCCESS · Beta</span>
+    <span id="ultima">—</span>
+  </footer>
+  </main>
+<script type="module">
+    // Página protegida: sin sesión de Firebase vuelve a /login. Las operaciones las protege el
+    // servidor (cada llamada a /api/registro lleva el ID token). Todo texto se asigna con textContent.
+    import { iniciarFirebase, nombreDe, inicialDe } from "/static/js/sesion.js";
+
+    const $ = (id) => document.getElementById(id);
+    const ESPERA_MS = 5000;
+    const nodo = () => $("nodo").value;
+
+    let usuario = null;
+    let temporizador = null;
+
+    function mensaje(texto, clase = "") {
+      $("registroMensaje").textContent = texto;
+      $("registroMensaje").className = "mensaje " + clase;
+    }
+
+    function textoError(datos, estado) {
+      const detalle = datos && datos.detail;
+      if (Array.isArray(detalle)) return detalle.map((d) => d.msg).join("; ");
+      return detalle || `Error ${estado}`;
+    }
+
+    async function api(metodo, ruta, cuerpo) {
+      const token = await usuario.getIdToken();
+      const cabeceras = { Authorization: "Bearer " + token };
+      if (cuerpo) cabeceras["Content-Type"] = "application/json";
+      const r = await fetch(ruta, {
+        method: metodo, headers: cabeceras, cache: "no-store",
+        body: cuerpo ? JSON.stringify(cuerpo) : undefined,
+      });
+      const datos = await r.json().catch(() => ({}));
+      return { ok: r.ok, estado: r.status, datos };
+    }
+
+    function mostrarCuenta(user) {
+      $("avatar").textContent = inicialDe(user);
+      $("nombre").textContent = nombreDe(user);
+      $("correo").textContent = user.email || "—";
+      $("verificado").textContent = user.emailVerified ? "sí" : "no";
+      $("acceso").textContent = "comprobando…";
+      api("GET", "/auth/me").then((r) => {
+        $("acceso").textContent = r.ok ? "autorizado" : (r.estado === 403 ? "sin permiso" : "no disponible");
+      }).catch(() => { $("acceso").textContent = "no disponible"; });
+    }
+
+    function formatearFecha(valor) {
+      if (!valor) return "—";
+      const fecha = new Date(valor);
+      return Number.isNaN(fecha.getTime()) ? String(valor) : fecha.toLocaleString();
+    }
+
+    // Estado de la solicitud → [clase del punto, título]
+    const ESTADOS = {
+      pending: ["warning", "Esperando aprobación"],
+      delivered: ["online", "Nodo registrado"],
+      expired: ["", "Solicitud vencida"],
+      gone: ["", "Solicitud cerrada"],
+    };
+
+    function pintarRegistro(d) {
+      if ($("nodo").options.length === 0) {
+        for (const codigo of d.nodos) $("nodo").add(new Option(codigo, codigo));
+        $("nodo").value = d.nodo;
+      }
+      const registro = d.registro;
+      let clase = "", titulo = "Sin registrar", detalle = "";
+
+      if (d.registrado || (registro && registro.status === "delivered")) {
+        [clase, titulo] = ESTADOS.delivered;
+        detalle = (registro && registro.detail) || "El nodo ya tiene su credencial.";
+      } else if (registro) {
+        [clase, titulo] = ESTADOS[registro.status] || ["", registro.status];
+        detalle = registro.detail || "";
+      } else if (d.credencial_activa) {
+        detalle = "Este bridge usa un token configurado por entorno. Si el backend no lo reconoce, solicita el registro.";
+      }
+      if (!d.consulta_configurada) detalle = "Falta configurar la URL de consulta en Beta (SENTINEL_CONSULTA_URL).";
+
+      $("registroPunto").className = "status-dot " + clase;
+      $("registroTitulo").textContent = titulo;
+      $("registroDetalle").textContent = detalle;
+      $("nodoCodigo").textContent = d.nodo;
+      $("sensoresNodo").textContent = (d.sensores || []).join(", ") || "—";
+      $("solicitudId").textContent = registro ? registro.registration_id : "—";
+      $("solicitudVence").textContent = registro && registro.status === "pending" ? formatearFecha(registro.expires_at) : "—";
+
+      const pendiente = Boolean(registro && registro.status === "pending");
+      const puedeSolicitar = d.consulta_configurada && !d.registrado && !pendiente;
+      $("registroForm").hidden = !puedeSolicitar;
+
+      // Mientras espera la aprobación se consulta cada 5 s; cuando cambia, se detiene.
+      if (pendiente && temporizador === null) temporizador = setInterval(refrescarRegistro, ESPERA_MS);
+      if (!pendiente && temporizador !== null) { clearInterval(temporizador); temporizador = null; }
+      $("ultima").textContent = "Última consulta: " + new Date().toLocaleTimeString();
+    }
+
+    async function refrescarRegistro() {
+      try {
+        const r = await api("GET", "/api/registro?node=" + encodeURIComponent(nodo()));
+        if (r.ok) pintarRegistro(r.datos);
+        else if (r.estado === 403) mensaje("Tu cuenta no tiene permiso para registrar el nodo.", "err");
+        else mensaje(textoError(r.datos, r.estado), "err");
+      } catch (e) {
+        mensaje("No se pudo consultar el estado del registro.", "err");
+      }
+    }
+
+    $("nodo").addEventListener("change", () => {
+      if (temporizador !== null) { clearInterval(temporizador); temporizador = null; }
+      mensaje("");
+      refrescarRegistro();
+    });
+
+    $("registroForm").addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const cuerpo = {
+        name: $("nombreNodo").value.trim(),
+        building_id: Number($("edificioId").value),
+        zone_id: Number($("zonaId").value),
+      };
+      if (!cuerpo.name || !Number.isInteger(cuerpo.building_id) || cuerpo.building_id < 1
+          || !Number.isInteger(cuerpo.zone_id) || cuerpo.zone_id < 1) {
+        mensaje("Escribe el nombre y los ids de edificio y zona (enteros mayores que 0).", "err");
+        return;
+      }
+      $("registroEnviar").disabled = true;
+      mensaje("Enviando solicitud…");
+      try {
+        const r = await api("POST", "/api/registro?node=" + encodeURIComponent(nodo()), cuerpo);
+        if (r.ok) {
+          mensaje("Solicitud enviada. Un administrador debe aprobarla en el backend.", "ok");
+          pintarRegistro(r.datos);
+        } else {
+          mensaje(textoError(r.datos, r.estado), "err");
+        }
+      } catch (e) {
+        mensaje("No se pudo enviar la solicitud.", "err");
+      } finally {
+        $("registroEnviar").disabled = false;
+      }
+    });
+
+    (async () => {
+      try {
+        const fb = await iniciarFirebase();
+        if (!fb) { location.replace("/login"); return; }
+        $("salir").addEventListener("click", () => fb.signOut(fb.auth));
+        fb.onAuthStateChanged(fb.auth, (user) => {
+          if (!user) { location.replace("/login"); return; }
+          usuario = user;
+          mostrarCuenta(user);
+          refrescarRegistro();
+        });
+      } catch (e) {
+        location.replace("/login");
+      }
+    })();
+  </script>
+</body>
+</html>

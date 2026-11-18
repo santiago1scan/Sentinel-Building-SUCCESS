@@ -32,7 +32,9 @@ def expand_lora_payload(compact: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": "2.0",
         "message_uid": compact["message_uid"],
-        "message_type": "telemetry_aggregate",
+        # Los resúmenes por LoRa de versiones anteriores no traían el tipo: se deduce de la prioridad.
+        "message_type": compact.get("message_type")
+        or ("out_of_range" if compact["priority"] != "normal" else "half_hour_summary"),
         "building_uid": compact["building_code"],
         "building_code": compact["building_code"],
         "gateway_uid": GATEWAY_UID,

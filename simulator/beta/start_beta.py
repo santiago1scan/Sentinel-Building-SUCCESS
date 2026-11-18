@@ -60,6 +60,15 @@ def main() -> None:
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
+    # Mismo formato que usa el stack principal: "NODE-FLOOR-1=tok1,NODE-FLOOR-2=tok2".
+    shared = {}
+    for item in os.getenv("SENTINEL_NODE_TOKENS", "").split(","):
+        node, sep, token = item.strip().partition("=")
+        if sep and node.strip() and token.strip():
+            shared[node.strip()] = token.strip()
+    args.node_token_floor_1 = args.node_token_floor_1 or shared.get("NODE-FLOOR-1")
+    args.node_token_floor_2 = args.node_token_floor_2 or shared.get("NODE-FLOOR-2")
+
     data_dir = Path(args.data_dir)
     if not data_dir.is_absolute():
         data_dir = ROOT / data_dir

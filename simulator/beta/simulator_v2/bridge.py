@@ -83,7 +83,7 @@ class PhysicalBetaBridge:
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
-                "X-Node-Token": self.node_token or "",
+                "X-Node-Token": self.receiver.token_for(self.node_code) or self.node_token or "",
             },
             method="POST",
         )

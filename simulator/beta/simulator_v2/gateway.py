@@ -11,6 +11,7 @@ from beta_simulator.sensors import utc_now
 
 from .backend_contract import telemetry_endpoint, validate_backend_ack
 from .config import GATEWAY_UID
+from .credentials import NodeRegistryStore
 from .storage import SummaryStore
 
 
@@ -22,12 +23,19 @@ class ExternalReceiver:
         data_dir: Path,
         backend_url: str | None = None,
         node_tokens: dict[str, str] | None = None,
+        credentials: NodeRegistryStore | None = None,
     ) -> None:
         self.store = SummaryStore(data_dir / "external_receiver.db")
         self.backend_url = backend_url.rstrip("/") if backend_url else None
         self.node_tokens = node_tokens or {}
+        self.credentials = credentials
         self.network_up = True
         self.received = 0
+
+    def token_for(self, node_code: str) -> str:
+        """Token obtenido en el registro; si no hay, el configurado por entorno."""
+        registered = self.credentials.token_for(node_code) if self.credentials else ""
+        return registered or self.node_tokens.get(node_code, "")
 
     def receive_lora(self, compact: dict[str, Any]) -> bool:
         payload = expand_lora_payload(compact)
@@ -57,7 +65,7 @@ class ExternalReceiver:
                 data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
                 headers={
                     "Content-Type": "application/json",
-                    "X-Node-Token": self.node_tokens.get(item["node_code"], ""),
+                    "X-Node-Token": self.token_for(item["node_code"]),
                 },
                 method="POST",
             )

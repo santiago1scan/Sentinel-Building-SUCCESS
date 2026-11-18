@@ -11,6 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .auth_web import AuthWeb
+
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parent
 ASSETS = PROJECT_ROOT / "dashboard" / "assets"
@@ -159,6 +161,7 @@ class DashboardData:
 class Handler(BaseHTTPRequestHandler):
     data: DashboardData
     control_url: str
+    auth: AuthWeb
 
     def send_bytes(self, status: int, content_type: str, body: bytes) -> None:
         self.send_response(status)
@@ -171,8 +174,15 @@ class Handler(BaseHTTPRequestHandler):
     def send_json(self, status: int, payload: dict) -> None:
         self.send_bytes(status, "application/json; charset=utf-8", json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 
+    def send_response_tuple(self, response: tuple[int, str, bytes]) -> None:
+        self.send_bytes(*response)
+
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
+        auth_response = self.auth.get(self.path, self.headers)
+        if auth_response is not None:
+            self.send_response_tuple(auth_response)
+            return
         if path == "/api/state":
             self.send_json(200, self.data.read())
             return
@@ -196,6 +206,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_json(404, {"detail": "Not found"})
 
     def do_POST(self) -> None:  # noqa: N802
+        if urlparse(self.path).path == "/api/registro":
+            size = int(self.headers.get("Content-Length", "0") or 0)
+            response = self.auth.post(self.path, self.headers, self.rfile.read(min(size, 65536)))
+            self.send_response_tuple(response)
+            return
         if urlparse(self.path).path != "/api/control":
             self.send_json(404, {"detail": "Not found"})
             return
@@ -230,6 +245,8 @@ def main() -> None:
     args = parser.parse_args()
     Handler.data = DashboardData(Path(args.data_dir), args.mock_backend_url)
     Handler.control_url = args.control_url.rstrip("/")
+    Handler.auth = AuthWeb.build(Path(args.data_dir))
+    Handler.auth.start_background_poll()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"React dashboard ready | http://{args.host}:{args.port} | data={args.data_dir} | control={Handler.control_url}")
     try:

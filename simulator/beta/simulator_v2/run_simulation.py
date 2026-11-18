@@ -12,6 +12,7 @@ from beta_simulator.config import NODES
 from beta_simulator.sensors import SensorSimulator
 
 from .bridge import PhysicalBetaBridge, SimulatedRadio
+from .credentials import NodeRegistryStore
 from .gateway import ExternalReceiver
 
 
@@ -183,7 +184,9 @@ def main() -> None:
         "NODE-FLOOR-1": args.node_token_floor_1 or "",
         "NODE-FLOOR-2": args.node_token_floor_2 or "",
     }
-    receiver = ExternalReceiver(root, backend_url=args.backend_url, node_tokens=node_tokens)
+    credentials = NodeRegistryStore(root / "node_credentials.json")
+    receiver = ExternalReceiver(
+        root, backend_url=args.backend_url, node_tokens=node_tokens, credentials=credentials)
     radio = SimulatedRadio(receiver, loss_rate=args.lora_loss_rate)
     sensor_simulator = SensorSimulator(seed=42)
     bridges = {

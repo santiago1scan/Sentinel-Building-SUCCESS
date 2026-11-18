@@ -14,6 +14,7 @@ from typing import Any
 from app.core.tiempo import utc_ahora
 from app.datos.cliente_bridge import ClienteBridge, ClienteBridgeError
 from app.negocio.escenarios.definiciones import ESCENARIOS, nodos_por_defecto
+from app.negocio.reflejo_beta import ReflejoBeta
 from app.negocio.generacion.sobres import eventos_nodo
 from app.negocio.sensores import resolver_sensor
 
@@ -49,8 +50,9 @@ def _metricas_bridge(salud: dict[str, Any] | None) -> dict[str, Any]:
 
 class ControladorSimulacion:
     def __init__(self, *, nodos: list[str], intervalo_s: float, cliente: ClienteBridge,
-                 semilla: int | None = None) -> None:
+                 semilla: int | None = None, reflejo: ReflejoBeta | None = None) -> None:
         self.nodos = list(nodos)
+        self.reflejo = reflejo
         self.intervalo_s = intervalo_s
         self.cliente = cliente
         self._rng = random.Random(semilla)
@@ -76,6 +78,15 @@ class ControladorSimulacion:
     def _linea(self, texto: str) -> None:
         with self._candado:
             self._salida.append(f"[{utc_ahora()}] {texto}")
+
+    def registrar_mensaje(self, texto: str) -> None:
+        """Línea en el log del panel (la usa el reflejo hacia Beta desde su propio hilo)."""
+        self._linea(texto)
+
+    def _reflejar(self, nodo: str, tipo_sensor: str, activa: bool) -> None:
+        # Solo encola: el envío a Beta ocurre en otro hilo, nunca con el candado tomado.
+        if self.reflejo is not None:
+            self.reflejo.anomalia(nodo, tipo_sensor, activa)
 
     # ------------------------------------------------------------------ validación
 
@@ -189,16 +200,23 @@ class ControladorSimulacion:
     # ------------------------------------------------------------------ anomalías
 
     def _poner_anomalia_bloqueado(self, nodo: str, alias: str) -> None:
-        self._anomalias[nodo].add(resolver_sensor(alias))
+        tipo = resolver_sensor(alias)
+        self._anomalias[nodo].add(tipo)
+        self._reflejar(nodo, tipo, True)
         self._evento("Command", f"anomaly {nodo} {alias}")
         self._despertar.set()  # No espera al siguiente intervalo: la emergencia sale ya.
 
     def _limpiar_pares_bloqueado(self, pares: list[tuple[str, str]]) -> None:
         for nodo, alias in pares:
-            self._anomalias[nodo].discard(resolver_sensor(alias))
+            tipo = resolver_sensor(alias)
+            if tipo in self._anomalias[nodo]:
+                self._anomalias[nodo].discard(tipo)
+                self._reflejar(nodo, tipo, False)
 
     def _limpiar_todo_bloqueado(self) -> None:
-        for valores in self._anomalias.values():
+        for nodo, valores in self._anomalias.items():
+            for tipo in sorted(valores):
+                self._reflejar(nodo, tipo, False)
             valores.clear()
 
     def poner_anomalia(self, nodo: str, sensor: str) -> dict[str, Any]:
@@ -211,7 +229,10 @@ class ControladorSimulacion:
     def limpiar_anomalia(self, nodo: str, sensor: str) -> dict[str, Any]:
         with self._candado:
             self._validar_nodo(nodo)
-            self._anomalias[nodo].discard(resolver_sensor(sensor))
+            tipo = resolver_sensor(sensor)
+            if tipo in self._anomalias[nodo]:
+                self._anomalias[nodo].discard(tipo)
+                self._reflejar(nodo, tipo, False)
             self._evento("Command", f"clear {nodo} {sensor}")
         return {"ok": True, "message": f"Anomaly cleared on {nodo} / {sensor}."}
 

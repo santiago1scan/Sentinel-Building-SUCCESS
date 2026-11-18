@@ -1,8 +1,8 @@
 """Configuración del simulador desde variables de entorno (prefijo SENTINEL_).
 
 Solo usa la biblioteca estándar, para correr con el Docker y las dependencias que
-ya existen para el simulador. La única conexión de salida es el bridge: no hay
-variables del backend, del broker MQTT ni de LoRa.
+ya existen para el simulador. La conexión de salida es el bridge (y, opcionalmente, la API de control de
+Beta para reflejar anomalías): no hay variables del backend, del broker MQTT ni de LoRa.
 """
 
 import os
@@ -25,12 +25,17 @@ class Settings:
     autostart: bool = False
     # Semilla opcional para repetir una simulación.
     seed: int | None = None
+    # API de control de la simulación Beta (p. ej. http://beta:8792). Vacío = no se refleja nada.
+    beta_url: str = ""
+    beta_timeout: float = 3.0
 
     def __post_init__(self) -> None:
         if not self.bridge_url.startswith(("http://", "https://")):
             raise ValueError("SENTINEL_BRIDGE_URL debe ser una URL HTTP o HTTPS")
         if self.bridge_timeout <= 0:
             raise ValueError("SENTINEL_BRIDGE_TIMEOUT debe ser positivo")
+        if self.beta_url and not self.beta_url.startswith(("http://", "https://")):
+            raise ValueError("SENTINEL_BETA_URL debe ser una URL HTTP o HTTPS")
         if self.interval <= 0:
             raise ValueError("SENTINEL_INTERVAL debe ser positivo")
         if not self.nodos:
@@ -51,6 +56,8 @@ class Settings:
             sim_nodes=os.getenv("SENTINEL_SIM_NODES", cls.sim_nodes),
             autostart=_texto_a_bool(os.getenv("SENTINEL_AUTOSTART")),
             seed=int(semilla) if semilla else None,
+            beta_url=os.getenv("SENTINEL_BETA_URL", cls.beta_url),
+            beta_timeout=float(os.getenv("SENTINEL_BETA_TIMEOUT", cls.beta_timeout)),
         )
 
 

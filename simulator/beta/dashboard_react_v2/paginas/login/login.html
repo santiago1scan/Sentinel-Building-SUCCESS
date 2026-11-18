@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101511">
+  <title>Sentinel Beta · Inicio de sesión</title>
+  <link rel="stylesheet" href="/paginas/login/login.css">
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Sentinel · Beta</h1>
+    <p class="sub">Inicia sesión con tu cuenta de Firebase para registrar los nodos.</p>
+
+    <div id="sin-sesion">
+      <button id="entrar" type="button">Entrar con Google</button>
+    </div>
+
+    <div id="con-sesion" hidden>
+      <button id="salir" class="secundario" type="button">Cerrar sesión</button>
+    </div>
+
+    <dl id="datos" hidden>
+      <dt>Correo</dt><dd id="correo">—</dd>
+      <dt>Verificado</dt><dd id="verificado">—</dd>
+      <dt>Acceso</dt><dd id="acceso">—</dd>
+    </dl>
+
+    <div id="estado" role="status"></div>
+    <p class="sub volver"><a href="/perfil">Ir al registro de nodos →</a> · <a href="/">← Dashboard</a></p>
+  </div>
+</main>
+<script type="module">
+  import { iniciarFirebase } from "/static/js/sesion.js";
+
+  const $ = (id) => document.getElementById(id);
+  const estado = $("estado");
+
+  function mostrar(texto, clase = "") {
+    estado.textContent = texto;        // textContent: nunca interpreta HTML del servidor o de Firebase
+    estado.className = clase;
+  }
+
+  function pintarSesion(user, datosBackend) {
+    $("sin-sesion").hidden = !!user;
+    $("con-sesion").hidden = !user;
+    $("datos").hidden = !user;
+    if (!user) return;
+    $("correo").textContent = datosBackend?.email ?? user.email ?? "—";
+    $("verificado").textContent = datosBackend ? (datosBackend.email_verificado ? "sí" : "no") : "—";
+    $("acceso").textContent = datosBackend ? "autorizado" : "sin acceso";
+  }
+
+  // Verifica el ID token en el backend: el mismo criterio que el resto de rutas protegidas.
+  async function verificarEnBackend(user) {
+    const token = await user.getIdToken();
+    const r = await fetch("/auth/me", { headers: { Authorization: "Bearer " + token } });
+    if (r.status === 403) throw new Error("Tu cuenta no está autorizada para este panel.");
+    if (r.status === 503) throw new Error("La autenticación no está configurada en el servidor.");
+    if (!r.ok) throw new Error("El servidor rechazó la sesión (" + r.status + ").");
+    return r.json();
+  }
+
+  async function iniciar() {
+    let fb;
+    try {
+      fb = await iniciarFirebase();
+    } catch (e) {
+      mostrar(e.message, "err");
+      $("entrar").disabled = true;
+      return;
+    }
+    if (!fb) {
+      mostrar("Falta configurar Firebase en el servidor (FIREBASE_PROJECT_ID y FIREBASE_API_KEY).", "err");
+      $("entrar").disabled = true;
+      return;
+    }
+
+    fb.onAuthStateChanged(fb.auth, async (user) => {
+      if (!user) { pintarSesion(null); mostrar(""); return; }
+      try {
+        const datos = await verificarEnBackend(user);
+        pintarSesion(user, datos);
+        mostrar("Sesión iniciada.", "ok");
+      } catch (e) {
+        pintarSesion(user, null);
+        mostrar(e.message, "err");
+      }
+    });
+
+    $("entrar").onclick = async () => {
+      $("entrar").disabled = true;
+      mostrar("Abriendo ventana de inicio de sesión…");
+      try {
+        await fb.signInWithPopup(fb.auth, new fb.GoogleAuthProvider());
+      } catch (e) {
+        if (e.code !== "auth/popup-closed-by-user") mostrar("No se pudo iniciar sesión: " + e.message, "err");
+        else mostrar("");
+      } finally {
+        $("entrar").disabled = false;
+      }
+    };
+
+    $("salir").onclick = () => fb.signOut(fb.auth);
+  }
+
+  iniciar();
+</script>
+</body>
+</html>

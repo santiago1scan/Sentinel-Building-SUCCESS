@@ -1,0 +1,48 @@
+/* Solo lo propio de la página de perfil; colores y bordes salen de las variables de /static/styles.css. */
+
+/* styles.css da display a varias clases (p. ej. .dashboard-link) y eso anula el atributo hidden. */
+[hidden] { display: none !important; }
+
+.sesion { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+
+.tarjeta {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(155deg, rgb(29 39 32 / 96%), rgb(20 27 22 / 98%));
+  box-shadow: var(--shadow);
+}
+
+.avatar {
+  display: grid; width: 44px; height: 44px; place-items: center; flex: 0 0 auto;
+  border: 1px solid #526652; border-radius: 50%;
+  background: linear-gradient(145deg, #27382b, #151d17);
+  color: var(--gold); font-size: 1.1rem; font-weight: 800;
+}
+
+.cuenta-cabecera { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.cuenta-cabecera strong { display: block; }
+.usuario { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+
+.datos { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 16px 0 0; font-size: .88rem; }
+.datos dt { color: var(--muted); }
+.datos dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+.formulario { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.formulario .field input[type="text"] {
+  width: 100%; min-height: 40px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 9px;
+  background: #111813; color: var(--text);
+}
+.formulario .field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.fila-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.formulario button[type="submit"] { width: 100%; margin-top: 6px; }
+
+.mensaje { min-height: 1.4em; margin: 14px 0 0; font-size: .88rem; }
+.mensaje.err { color: var(--red); }
+.mensaje.ok { color: var(--green); }
+
+@media (max-width: 680px) {
+  .sesion { justify-content: flex-start; }
+  .fila-dos { grid-template-columns: 1fr; }
+}

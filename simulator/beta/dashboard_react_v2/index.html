@@ -51,15 +51,16 @@
 @media(max-width:650px){.emergency-timing{grid-template-columns:1fr}.emergency-summary{display:grid;gap:3px}}
 </style>
 </head>
-<body><div id="root"></div>
+<body><a href="/perfil" style="position:fixed;right:14px;bottom:14px;z-index:50;padding:9px 13px;border:1px solid #467b5c;border-radius:6px;background:#162019;color:#80d69a;font:13px 'Segoe UI',Arial,sans-serif;text-decoration:none">Registro de nodos</a><div id="root"></div>
 <script type="text/babel">
 const {useEffect,useMemo,useState}=React;
 const h=React.createElement;
 const asset={motion:'/assets/sensors/adxl355-pmdz.png',temperature:'/assets/sensors/amg8833.png',air_quality:'/assets/sensors/bme688.png',electrical:'/assets/sensors/ina219.png'};
 const gif={motion:'/assets/accelerometer-sensor.gif',temperature:'/assets/message.gif',air_quality:'/assets/message.gif',electrical:'/assets/message.gif'};
 function fmt(v){return v?new Date(v).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—'}
-function reading(s){const d=s.data||{};if(s.measurement_type==='motion')return [d.rms_avg_g,'g RMS'];if(s.measurement_type==='temperature')return [d.average_avg_c,'°C'];if(s.measurement_type==='air_quality')return [d.iaq_avg,'IAQ'];if(s.measurement_type==='electrical')return [d.voltage_avg_v,'V bus'];return ['—','']}
-function health(s){if(s.stale)return 'warning';const d=s.data||{},t=s.measurement_type;let v=t==='motion'?Number(d.rms_max_g||0):t==='temperature'?Number(d.maximum_c||0):t==='air_quality'?Number(d.iaq_avg||0):Number(d.voltage_avg_v||0);if(t==='motion')return v>=.25?'alarm':v>=.05?'warning':'normal';if(t==='temperature')return v>=40?'alarm':v>=30?'warning':'normal';if(t==='air_quality')return v>=250?'alarm':v>=120?'warning':'normal';return d.battery_low||v<11?'alarm':v<11.8?'warning':'normal'}
+function metric(d,k,a){const v=d[k+'__'+a];return v!==undefined?v:d[k]}
+function reading(s){const d=s.data||{};if(s.measurement_type==='motion')return [metric(d,'rms_g','avg'),'g RMS'];if(s.measurement_type==='temperature')return [metric(d,'average_c','avg'),'°C'];if(s.measurement_type==='air_quality')return [metric(d,'iaq_index','avg'),'IAQ'];if(s.measurement_type==='electrical')return [metric(d,'bus_voltage_v','avg'),'V bus'];return ['—','']}
+function health(s){if(s.stale)return 'warning';const d=s.data||{},t=s.measurement_type;let v=t==='motion'?Number(metric(d,'rms_g','max')||0):t==='temperature'?Number(metric(d,'maximum_c','max')||0):t==='air_quality'?Number(metric(d,'iaq_index','avg')||0):Number(metric(d,'bus_voltage_v','avg')||0);if(t==='motion')return v>=.25?'alarm':v>=.05?'warning':'normal';if(t==='temperature')return v>=40?'alarm':v>=30?'warning':'normal';if(t==='air_quality')return v>=250?'alarm':v>=120?'warning':'normal';return d.battery_low||v<11?'alarm':v<11.8?'warning':'normal'}
 function label(s){return s==='alarm'?'ALARM':s==='warning'?'WARNING':'NORMAL'}
 function Button({children,onClick,kind='',disabled=false}){return <button disabled={disabled} className={'btn '+kind} onClick={onClick}>{children}</button>}
 function App(){

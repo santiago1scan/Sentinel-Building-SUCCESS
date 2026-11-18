@@ -8,14 +8,23 @@ const formatDate = (ms) => new Date(ms).toLocaleString("es");
  * información en tabla (vista alternativa para quien no ve la gráfica).
  */
 function MetricChartCard({ group }) {
-  const unit = group.type?.default_unit ?? "";
+  const metric = group.metric ?? null;
+  const unit = metric?.unit ?? group.type?.default_unit ?? "";
   const sensorName = group.sensor?.code ?? `Sensor #${group.sensorId}`;
-  const title = `${sensorName}${group.metricId != null ? ` · métrica #${group.metricId}` : ""}`;
+  // Nombre legible de la variable; si el catálogo no la describe, su código y, en último caso, el número.
+  const metricLabel = metric?.name || metric?.metric_code || (group.metricId != null ? `métrica #${group.metricId}` : null);
+  const title = metricLabel ? `${metricLabel} · ${sensorName}` : sensorName;
 
-  // El rango normal es del tipo de sensor: solo se dibuja si el sensor tiene una única métrica.
+  // El rango normal es de la métrica. Un tipo de sensor con una única métrica puede usar el rango del tipo.
+  const range =
+    metric && metric.normal_minimum != null && metric.normal_maximum != null
+      ? metric
+      : group.type && group.singleMetric
+        ? group.type
+        : null;
   const band =
-    group.type && group.type.normal_minimum != null && group.type.normal_maximum != null && group.singleMetric
-      ? { min: Number(group.type.normal_minimum), max: Number(group.type.normal_maximum) }
+    range && range.normal_minimum != null && range.normal_maximum != null
+      ? { min: Number(range.normal_minimum), max: Number(range.normal_maximum) }
       : null;
 
   const rows = group.series

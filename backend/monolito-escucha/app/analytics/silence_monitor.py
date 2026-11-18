@@ -2,6 +2,7 @@
 
 The bridge sends a summary every 30 minutes, so the default threshold is 35 minutes (one summary plus margin).
 The alert closes on the node's next message (AlertEngine.on_node_heard, called during ingest).
+The same check closes the node's connectivity session (app/analytics/connectivity.py).
 """
 import asyncio
 import logging
@@ -11,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.analytics.alert_engine import AlertEngine
+from app.analytics.connectivity import close_silent_sessions
 from app.models.node import Node
 from app.repositories.analytics_repositories import AlertRepository
 
@@ -28,6 +30,8 @@ async def check_silent_nodes(session: AsyncSession, *, now: datetime, threshold_
     engine = AlertEngine(AlertRepository(session))
     for node in nodes:
         await engine.open_node_silent(node.node_id, now)
+    # The same silence ends the node's connectivity session (the panel then shows it as disconnected).
+    await close_silent_sessions(session, now=now, threshold_minutes=threshold_minutes)
     await session.flush()
     return len(nodes)
 
