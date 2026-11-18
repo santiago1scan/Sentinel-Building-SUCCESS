@@ -38,14 +38,17 @@ class BridgeRadio:
     def _alert_values(payload: dict[str, Any]) -> tuple[str, str, int, int]:
         for sensor in payload["bridges"][0]["sensors"]:
             model, data = sensor["sensor_model"], sensor["data"]
-            if model == "ADXL355" and data.get("rms_max_g", 0) >= 0.25:
-                return model, "VIBRATION_HIGH", int(data["rms_max_g"] * 1000), 250
+            rms = data.get("rms_g", data.get("rms_g__max", data.get("rms_max_g", 0)))
+            if model == "ADXL355" and rms >= 0.25:
+                return model, "VIBRATION_HIGH", int(rms * 1000), 250
             if model == "AMG8833" and data.get("maximum_c", 0) >= 40:
                 return model, "HOTSPOT", int(data["maximum_c"] * 100), 4000
-            if model == "BME688" and data.get("iaq_avg", 0) >= 250:
-                return model, "AIR_QUALITY", int(data["iaq_avg"]), 250
+            iaq = data.get("iaq_index", data.get("iaq_index__avg", data.get("iaq_avg", 0)))
+            if model == "BME688" and iaq >= 250:
+                return model, "AIR_QUALITY", int(iaq), 250
             if model == "INA219" and data.get("battery_low", False):
-                return model, "POWER_LOW", int(data["voltage_min_v"] * 1000), 11000
+                voltage = data.get("bus_voltage_v", data.get("bus_voltage_v__min", 0))
+                return model, "POWER_LOW", int(voltage * 1000), 11000
         return "ADXL355", "VIBRATION_HIGH", 0, 250
 
     def send(self, payload: dict[str, Any]) -> bool:

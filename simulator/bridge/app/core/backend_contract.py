@@ -5,7 +5,7 @@ from typing import Any
 
 
 def telemetry_endpoint(base_url: str) -> str:
-    """Return the ingestion endpoint from either a base URL or the full endpoint."""
+    """Acepta la URL base o el endpoint completo que me entregue el backend."""
     normalized = base_url.rstrip("/")
     suffix = "/telemetry/aggregate"
     return normalized if normalized.endswith(suffix) else f"{normalized}{suffix}"
@@ -17,7 +17,7 @@ def validate_backend_ack(
     expected_message_uid: str,
     expected_readings: int,
 ) -> tuple[bool, str]:
-    """Validate the backend acknowledgement before removing a queued summary."""
+    """Solo retiro la cola cuando el backend confirma el mismo mensaje."""
     if not 200 <= status < 300:
         return False, f"HTTP {status}: {body[:2000]}"
 
@@ -36,6 +36,11 @@ def validate_backend_ack(
         return False, f"HTTP {status}: missing errors list"
     if errors:
         return False, f"HTTP {status}: backend errors={errors}"
+
+    # Si la primera respuesta se perdió, el reintento llega como duplicado. El
+    # backend ya conserva ese UID y por eso también puedo cerrar el pendiente.
+    if response.get("duplicate") is True:
+        return True, f"HTTP {status}: message already stored"
 
     readings_created = response.get("readings_created")
     if not isinstance(readings_created, int) or isinstance(readings_created, bool):

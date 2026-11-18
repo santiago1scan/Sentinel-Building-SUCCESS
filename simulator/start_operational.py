@@ -11,6 +11,16 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
+DEFAULT_BACKEND = "http://127.0.0.1:8089"
+
+
+def node_tokens(spec: str) -> dict[str, str]:
+    tokens: dict[str, str] = {}
+    for item in spec.split(","):
+        node, separator, token = item.strip().partition("=")
+        if separator and node.strip() and token.strip():
+            tokens[node.strip()] = token.strip()
+    return tokens
 
 
 def wait_for(url: str, timeout: float = 25.0) -> None:
@@ -56,7 +66,15 @@ def main() -> None:
     parser.add_argument("--bridge-2-port", type=int, default=8992)
     parser.add_argument("--brigadist-port", type=int, default=8993)
     parser.add_argument("--radio-port", type=int, default=9200)
-    parser.add_argument("--backend-url")
+    parser.add_argument(
+        "--backend-url",
+        default=os.getenv("SENTINEL_BACKEND_URL", DEFAULT_BACKEND),
+        help="URL de monolito-escucha; por defecto usa http://127.0.0.1:8089",
+    )
+    parser.add_argument(
+        "--offline-demo", action="store_true",
+        help="Inicia sin backend para probar únicamente SQLite y LoRa",
+    )
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
@@ -64,6 +82,21 @@ def main() -> None:
     runtime.mkdir(parents=True, exist_ok=True)
     shared_env = os.environ.copy()
     shared_env.setdefault("SENTINEL_LORA_KEY", "sentinel-simulator-shared-key")
+    configured_tokens = node_tokens(shared_env.get("SENTINEL_NODE_TOKENS", ""))
+    configured_tokens["NODE-FLOOR-1"] = shared_env.get(
+        "SENTINEL_NODE_TOKEN_FLOOR_1", configured_tokens.get("NODE-FLOOR-1", "")
+    )
+    configured_tokens["NODE-FLOOR-2"] = shared_env.get(
+        "SENTINEL_NODE_TOKEN_FLOOR_2", configured_tokens.get("NODE-FLOOR-2", "")
+    )
+    backend_url = None if args.offline_demo else args.backend_url
+    if backend_url:
+        missing = [node for node, token in configured_tokens.items() if not token]
+        if missing:
+            parser.error(
+                "Faltan tokens para " + ", ".join(missing)
+                + ". Define SENTINEL_NODE_TOKENS o usa --offline-demo."
+            )
     processes: list[subprocess.Popen[bytes]] = []
 
     try:
@@ -73,18 +106,18 @@ def main() -> None:
             "--history", str(runtime / "brigadist_alerts.json"), script="main.py", env=shared_env,
         ))
 
-        for node, port, token_name in (
-            ("NODE-FLOOR-1", args.bridge_1_port, "SENTINEL_NODE_TOKEN_FLOOR_1"),
-            ("NODE-FLOOR-2", args.bridge_2_port, "SENTINEL_NODE_TOKEN_FLOOR_2"),
+        for node, port in (
+            ("NODE-FLOOR-1", args.bridge_1_port),
+            ("NODE-FLOOR-2", args.bridge_2_port),
         ):
             command = [
                 "--node", node, "--host", args.host, "--port", str(port), "--data-dir", str(runtime),
                 "--receiver-port", str(args.radio_port),
             ]
-            if args.backend_url:
+            if backend_url:
                 command.extend([
-                    "--backend-url", args.backend_url,
-                    "--node-token", shared_env.get(token_name, ""),
+                    "--backend-url", backend_url,
+                    "--node-token", configured_tokens[node],
                 ])
             processes.append(launch("bridge", *command, env=shared_env))
 
@@ -109,6 +142,7 @@ def main() -> None:
         print(f"Receptor del brigadista: {brigadist_url}")
         print(f"Bridge Piso 1: {bridge_1}")
         print(f"Bridge Piso 2: {bridge_2}")
+        print(f"Backend: {backend_url or 'desactivado para esta demostración'}")
         print("Arquitectura: 2 monolitos y 1 receptor Heltec; el bridge se despliega una vez por piso.")
         print("Presiona Ctrl+C para detener todo.\n")
         if not args.no_browser:

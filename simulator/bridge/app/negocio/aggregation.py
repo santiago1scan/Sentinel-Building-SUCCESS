@@ -13,42 +13,42 @@ def _avg(values: list[float]) -> float:
     return round(statistics.fmean(values), 6) if values else 0.0
 
 
-def _sensor_data(sensor_type: str, events: list[dict[str, Any]]) -> dict[str, Any]:
-    payloads = [event["payload"] for event in events]
-    if sensor_type == "accelerometer":
-        return {
-            "x_avg_g": _avg([p["x_g"] for p in payloads]),
-            "y_avg_g": _avg([p["y_g"] for p in payloads]),
-            "z_avg_g": _avg([p["z_g"] for p in payloads]),
-            "rms_avg_g": _avg([p["rms_g"] for p in payloads]),
-            "rms_max_g": round(max(p["rms_g"] for p in payloads), 6),
-            "frequency_avg_hz": _avg([p["frequency_hz"] for p in payloads]),
-        }
-    if sensor_type == "thermal_array":
-        return {
-            "average_avg_c": _avg([p["average_c"] for p in payloads]),
-            "maximum_avg_c": _avg([p["maximum_c"] for p in payloads]),
-            "maximum_c": round(max(p["maximum_c"] for p in payloads), 4),
-            "hot_pixels_max": max(p["hot_pixels"] for p in payloads),
-            "matrix_size": "8x8",
-        }
-    if sensor_type == "gas_environmental":
-        return {
-            "temperature_avg_c": _avg([p["temperature_c"] for p in payloads]),
-            "humidity_avg_percent": _avg([p["humidity_percent"] for p in payloads]),
-            "pressure_avg_hpa": _avg([p["pressure_hpa"] for p in payloads]),
-            "iaq_avg": _avg([p["iaq_index"] for p in payloads]),
-            "tvoc_avg_ppb": _avg([p["tvoc_ppb"] for p in payloads]),
-        }
-    voltage = [p["bus_voltage_v"] for p in payloads]
+def _summary(values: list[float], name: str) -> dict[str, float]:
     return {
-        "voltage_avg_v": _avg(voltage),
-        "voltage_min_v": round(min(voltage), 6),
-        "voltage_max_v": round(max(voltage), 6),
-        "current_avg_ma": _avg([p["current_ma"] for p in payloads]),
-        "power_avg_mw": _avg([p["power_mw"] for p in payloads]),
-        "battery_low": any(p["battery_low"] for p in payloads),
+        f"{name}__avg": _avg(values),
+        f"{name}__max": round(max(values), 6),
+        f"{name}__min": round(min(values), 6),
     }
+
+
+def _sensor_data(
+    sensor_type: str,
+    events: list[dict[str, Any]],
+    immediate: bool,
+) -> dict[str, Any]:
+    payloads = [event["payload"] for event in events]
+    if immediate:
+        return dict(payloads[-1])
+    if sensor_type == "accelerometer":
+        data: dict[str, Any] = {}
+        for name in ("x_g", "y_g", "z_g", "rms_g", "frequency_hz"):
+            data.update(_summary([float(p[name]) for p in payloads], name))
+        return data
+    if sensor_type == "thermal_array":
+        data = {}
+        for name in ("average_c", "maximum_c", "hot_pixels"):
+            data.update(_summary([float(p[name]) for p in payloads], name))
+        return data
+    if sensor_type == "gas_environmental":
+        data = {}
+        for name in ("temperature_c", "humidity_percent", "pressure_hpa", "iaq_index", "tvoc_ppb"):
+            data.update(_summary([float(p[name]) for p in payloads], name))
+        return data
+    data = {}
+    for name in ("bus_voltage_v", "current_ma", "power_mw"):
+        data.update(_summary([float(p[name]) for p in payloads], name))
+    data["battery_low"] = any(bool(p["battery_low"]) for p in payloads)
+    return data
 
 
 def aggregate_for_bridge(
@@ -73,13 +73,13 @@ def aggregate_for_bridge(
             }[sensor_type],
             "source_sensor_type": sensor_type,
             "sample_count": len(grouped_events),
-            "data": _sensor_data(sensor_type, grouped_events),
+            "data": _sensor_data(sensor_type, grouped_events, window_seconds == 0),
         })
     timestamps = [event["generated_at"] for event in events]
     return {
         "schema_version": "2.0",
         "message_uid": str(uuid.uuid4()),
-        "message_type": "telemetry_aggregate",
+        "message_type": "out_of_range" if window_seconds == 0 else "half_hour_summary",
         "building_uid": BUILDING_CODE,
         "building_code": BUILDING_CODE,
         "gateway_uid": GATEWAY_UID,

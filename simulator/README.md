@@ -17,9 +17,11 @@ El mismo código del bridge se inicia dos veces. Cada ejecución representa una 
 
 ## Ejecutar mi versión completa
 
-Desde esta carpeta:
+El arranque normal apunta a `monolito-escucha` en `http://127.0.0.1:8089`.
+Antes de iniciarlo coloco los tokens que el backend asignó a cada bridge:
 
 ```powershell
+$env:SENTINEL_NODE_TOKENS="NODE-FLOOR-1=token-piso-1,NODE-FLOOR-2=token-piso-2"
 python start_operational.py
 ```
 
@@ -32,10 +34,19 @@ Direcciones que uso en local:
 - Bridge del piso 2: `http://127.0.0.1:8992`
 - Receptor del brigadista: `http://127.0.0.1:8993`
 
-Para probar con un backend local agrego su dirección:
+Si el backend usa otra dirección, la cambio sin tocar el código:
 
 ```powershell
-python start_operational.py --backend-url http://127.0.0.1:8000
+$env:SENTINEL_BACKEND_URL="http://127.0.0.1:8089"
+python start_operational.py
+```
+
+Los dos nodos y sus cuatro sensores deben estar registrados en la base del
+backend con los mismos códigos que aparecen en el JSON. Para revisar solamente
+la retención local y LoRa, sin intentar REST, uso el modo de demostración:
+
+```powershell
+python start_operational.py --offline-demo
 ```
 
 ## Flujo que estoy representando
@@ -47,7 +58,7 @@ Sensores -> Bridge Raspberry Pi 5
               `-> LoRa/SX1262 -> receptor Heltec del brigadista
 ```
 
-Los sensores solo producen y envían lecturas. El bridge es quien valida, calcula los resúmenes, forma el JSON 2.0 y guarda la cola. Si una emergencia no recibe confirmación REST, envío una trama LoRa compacta al brigadista. Ese ACK de radio no borra el pendiente del backend; el JSON queda guardado hasta recuperar la conexión.
+Los sensores solo producen y envían lecturas. El bridge es quien valida, calcula los resúmenes, forma el JSON 2.0 y guarda la cola. Las ventanas normales se envían como `half_hour_summary` y las emergencias como `out_of_range`, que son los dos tipos que procesa el backend. Si una emergencia no recibe confirmación REST, envío una trama LoRa compacta al brigadista. Ese ACK de radio no borra el pendiente del backend; el JSON queda guardado hasta recuperar la conexión.
 
 ## Pruebas
 
