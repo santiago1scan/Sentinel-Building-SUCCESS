@@ -73,4 +73,23 @@ cd ..\brigadist-receiver\emulator
 python -m pytest tests -q
 ```
 
-Estas pruebas revisan la generación de sensores, la cola local, la recuperación en orden, el aislamiento de bridges y la autenticación de la trama LoRa. Los archivos generados durante la ejecución quedan en `runtime/` y no se suben al repositorio.
+The simulator sends raw readings to `POST /v1/readings` on the bridge. The
+bridge stores the readings in SQLite, calculates the aggregate and sends new
+data through REST. Pending data is kept locally for MQTT recovery. LoRa is
+used for the emergency summary when the network is unavailable.
+
+Do not commit passwords, tokens, virtual environments or generated databases.
+
+## Beta resiliente
+
+La versión Beta autocontenida está en [`beta/`](beta/README.md). Incluye dos
+bridges independientes, almacenamiento SQLite, cola de sincronización, respaldo
+LoRa, contrato JSON 2.0, dashboard React y pruebas automatizadas. Puede
+ejecutarse sin reemplazar los componentes anteriores de esta carpeta.
+
+## Beta y panel de escenarios con el mock SQLite
+
+Para iniciar ambos dashboards y enviar sus agregados al mismo mock local,
+consulta las [instrucciones del panel de escenarios](beta/dashboard_scenario/README_ESCENARIOS.md).
+El resumen detallado de archivos modificados y del flujo de datos está en
+[`RESUMEN_CAMBIOS.md`](RESUMEN_CAMBIOS.md).

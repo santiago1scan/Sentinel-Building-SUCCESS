@@ -1,0 +1,26 @@
+SENTINEL BUILDING - SIMULACION BETA
+===================================
+
+OPCION 1 - WINDOWS CON PYTHON
+1. Instalar Python 3.11 o superior.
+2. Mantener toda esta carpeta completa.
+3. Hacer doble clic en INICIAR_BETA.bat.
+4. Abrir http://127.0.0.1:8782 si el navegador no se abre automaticamente.
+5. Para detener todo, presionar Ctrl+C en la ventana de comandos.
+
+OPCION 2 - DOCKER
+1. Abrir una terminal dentro de esta carpeta.
+2. Ejecutar: docker compose up --build
+3. Abrir: http://127.0.0.1:8782
+4. Para detener: Ctrl+C y luego docker compose down
+
+PRUEBAS
+- Hacer doble clic en EJECUTAR_PRUEBAS.bat, o usar la pestana Testing.
+- Ejecutarlas en este orden: Healthy path, Network fallback,
+  Bridge isolation, Immediate anomaly y Recovery.
+
+NOTAS
+- Las imagenes, GIF, logos y el modelo 3D estan dentro de dashboard/assets.
+- Se necesita Internet para cargar React y el visor del modelo 3D desde CDN.
+- Sin backend, los paquetes quedan en Pending queue. Es el comportamiento esperado.
+- No compartir tokens del backend dentro de esta carpeta.
