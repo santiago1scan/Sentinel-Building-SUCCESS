@@ -34,15 +34,20 @@ def crear_evento(nodo: str, tipo: str, secuencia: int, payload: dict[str, Any],
     }
 
 
-def eventos_nodo(nodo: str, secuencia: int, anomalias: set[str],
+def eventos_nodo(nodo: str, secuencia: int, anomalias: dict[str, str],
                  silenciados: set[tuple[str, str]], rng: random.Random) -> list[dict[str, Any]]:
-    """Una lectura por sensor del nodo; los sensores sin respuesta no emiten."""
+    """Una lectura por sensor del nodo; los sensores sin respuesta no emiten.
+
+    `anomalias`: tipo de sensor → modo ("fire", "candle", "spray", "faulty"). Toda anomalía sale de inmediato; la
+    gravedad no la pone el simulador, la deduce el backend.
+    """
     eventos = []
     for tipo in TIPOS_SENSOR:
         if (nodo, tipo) in silenciados:
             continue
-        anomalia = tipo in anomalias
-        payload = GENERADORES[tipo](rng, anomalia)
+        modo = anomalias.get(tipo)
+        anomalia = modo is not None
+        payload = GENERADORES[tipo](rng, modo)
         eventos.append(crear_evento(
             nodo, tipo, secuencia, payload,
             PRIORIDAD_ANOMALIA[tipo] if anomalia else "normal",
