@@ -114,3 +114,25 @@ def test_rollback_no_publica_nada(session, queue):
     session.rollback()
 
     assert _drain(queue) == []
+
+
+def test_payload_has_severity(session, queue):
+    alert = _alert(code="OUT_OF_RANGE_ABOVE", node_id=11)
+    alert.severity = "leve"
+    session.add(alert)
+    session.commit()
+    assert _drain(queue)[-1][1]["severity"] == "leve"
+
+
+def test_severity_change_is_published(session, queue):
+    # Upgrading to emergency changes neither ended_at nor handled_by_user_id: it must still reach the panel.
+    alert = _alert(code="OUT_OF_RANGE_ABOVE", node_id=12)
+    alert.severity = "leve"
+    session.add(alert)
+    session.commit()
+    _drain(queue)
+
+    alert.severity = "emergencia"
+    session.commit()
+    events = _drain(queue)
+    assert len(events) == 1 and events[0][1]["severity"] == "emergencia"

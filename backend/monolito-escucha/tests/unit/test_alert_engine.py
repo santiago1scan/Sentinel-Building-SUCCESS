@@ -39,6 +39,10 @@ TEMP = metric("temperature_c", 1)
 IAQ = metric("iaq_index", 2)
 HUM = metric("humidity_percent", 3)
 BATTERY = metric("battery_low", 4)
+MAX_C = metric("maximum_c", 5)
+RMS = metric("rms_g", 6)
+VOLTAGE = metric("bus_voltage_v", 7)
+METRIC_CODES = {m.metric_id: m.metric_code for m in (TEMP, IAQ, HUM, BATTERY, MAX_C, RMS, VOLTAGE)}
 
 
 class FakeStore:
@@ -58,6 +62,10 @@ class FakeStore:
     async def open_out_of_range(self, sensor_id, metric_id):
         return [a for a in self.alerts if a.ended_at is None and a.alert_type == "out_of_range"
                 and a.sensor_id == sensor_id and a.metric_id == metric_id]
+
+    async def open_out_of_range_by_node(self, node_id):
+        return [(a, METRIC_CODES[a.metric_id]) for a in self.alerts
+                if a.ended_at is None and a.alert_type == "out_of_range" and a.node_id == node_id]
 
     async def add(self, alert):
         alert.alert_id = len(self.alerts) + 1
@@ -190,3 +198,63 @@ async def test_on_battery_power_opens_and_closes(engine, store):
     assert [(a.alert_code, a.alert_type) for a in store.alerts] == [("ON_BATTERY_POWER", "technical")]
     await engine.on_battery(NODE, SENSOR, power, 0, minutes(5), code="ON_BATTERY_POWER")
     assert store.alerts[0].ended_at == minutes(5)
+
+
+# --- severity (24-Nov-2026): emergency vs minor, per node ------------------------------------------------------------
+THERMAL_SENSOR, GAS_SENSOR = 7, 8
+
+
+async def test_only_heat_is_minor(engine, store):
+    await engine.on_raw(THERMAL_SENSOR, NODE, MAX_C, 50, minutes(0))
+    await engine.apply_severity(NODE)
+    assert [a.severity for a in store.alerts] == ["leve"]
+
+
+async def test_fire_in_two_steps_upgrades_the_first_alerts(engine, store):
+    # The thermal camera arrives first (minor); the gas sensor 0.3 s later makes it a fire pattern.
+    await engine.on_raw(THERMAL_SENSOR, NODE, MAX_C, 50, minutes(0))
+    await engine.apply_severity(NODE)
+    assert store.alerts[0].severity == "leve"
+    await engine.on_raw(GAS_SENSOR, NODE, IAQ, 300, minutes(0))
+    await engine.apply_severity(NODE)
+    assert [a.severity for a in store.alerts] == ["emergencia", "emergencia"]
+
+
+async def test_emergency_never_downgrades(engine, store):
+    await engine.on_raw(THERMAL_SENSOR, NODE, MAX_C, 50, minutes(0))
+    await engine.on_raw(GAS_SENSOR, NODE, IAQ, 300, minutes(0))
+    await engine.apply_severity(NODE)
+    await engine.on_raw(GAS_SENSOR, NODE, IAQ, 80, minutes(1))  # air back to normal: only heat stays open
+    await engine.apply_severity(NODE)
+    assert store.alerts[0].ended_at is None and store.alerts[0].severity == "emergencia"
+    assert store.alerts[1].severity == "emergencia"  # closed, keeps what it was
+
+
+async def test_closed_alerts_do_not_count(engine, store):
+    await engine.on_raw(GAS_SENSOR, NODE, IAQ, 300, minutes(0))
+    await engine.on_raw(GAS_SENSOR, NODE, IAQ, 80, minutes(1))  # closed before the heat shows up
+    await engine.on_raw(THERMAL_SENSOR, NODE, MAX_C, 50, minutes(2))
+    await engine.apply_severity(NODE)
+    assert store.alerts[1].severity == "leve"
+
+
+async def test_motion_and_energy_are_emergency(engine, store):
+    await engine.on_raw(SENSOR, NODE, RMS, 0.5, minutes(0))
+    await engine.on_raw(SENSOR, 4, VOLTAGE, 10.5, minutes(0))
+    await engine.apply_severity(NODE)
+    await engine.apply_severity(4)
+    assert [a.severity for a in store.alerts] == ["emergencia", "emergencia"]
+
+
+async def test_technical_alerts_get_no_severity(engine, store):
+    await engine.on_raw(GAS_SENSOR, NODE, TEMP, 120, minutes(0))  # above 85 °C: impossible, a damaged sensor
+    await engine.apply_severity(NODE)
+    assert store.alerts[0].alert_type == "technical" and store.alerts[0].severity is None
+
+
+async def test_nodes_do_not_mix(engine, store):
+    await engine.on_raw(THERMAL_SENSOR, NODE, MAX_C, 50, minutes(0))
+    await engine.on_raw(GAS_SENSOR, 4, IAQ, 300, minutes(0))  # air quality on another node
+    await engine.apply_severity(NODE)
+    await engine.apply_severity(4)
+    assert [a.severity for a in store.alerts] == ["leve", "leve"]

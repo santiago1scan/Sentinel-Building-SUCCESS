@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from app.analytics.ranges import RangeLike, deviation, evaluate
+from app.analytics.severity import EMERGENCIA, classify_node
 from app.models.alert import Alert
 
 OUT_OF_RANGE = "out_of_range"
@@ -39,6 +40,10 @@ class AlertStore(Protocol):
                         direction: str | None = None) -> Alert | None: ...
 
     async def open_out_of_range(self, sensor_id: int, metric_id: int) -> list[Alert]: ...
+
+    async def open_out_of_range_by_node(self, node_id: int) -> list[tuple[Alert, str]]:
+        """Open out-of-range alerts of a node, each with the metric_code of its variable."""
+        ...
 
     async def add(self, alert: Alert) -> Alert: ...
 
@@ -144,6 +149,20 @@ class AlertEngine:
             await self._open_or_extend(alert_type=TECHNICAL, alert_code=SENSOR_STUCK, at=window_end,
                                        node_id=node_id, sensor_id=sensor_id, metric_id=metric.metric_id,
                                        value=max_)
+
+    # --- severity (per node) -------------------------------------------------------------------------------------------
+    async def apply_severity(self, node_id: int) -> None:
+        """Grade the node's open out-of-range alerts (app/analytics/severity.py). Run after the node's readings.
+
+        An emergency is never lowered back to minor: the history keeps the worst the alert was.
+        """
+        open_alerts = await self.store.open_out_of_range_by_node(node_id)
+        severity = classify_node(code for _, code in open_alerts)
+        if severity is None:
+            return
+        for alert, _ in open_alerts:
+            if alert.severity != EMERGENCIA:
+                alert.severity = severity
 
     # --- technical notices: battery and silence (per node) --------------------------------------------------------------
     async def on_battery(self, node_id: int, sensor_id: int, metric: MetricLike, flag: float, at: datetime,

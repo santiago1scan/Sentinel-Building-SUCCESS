@@ -231,3 +231,15 @@ async def test_telemetry_by_node_reports_the_floor_of_its_zone(session):
 
     assert data["zone"]["floor"] == 1
     assert data["zone"]["floor_name"] == "Primer piso"
+
+
+async def test_ingest_sets_severity(session):
+    """24-Nov-2026: heat alone is minor; heat plus air quality on the same node makes both an emergency."""
+    await ingest(session, incident("sev-1", T0, {"temperature_c": 35}))
+    alerts = (await session.execute(select(Alert).order_by(Alert.alert_id))).scalars().all()
+    assert [a.severity for a in alerts] == ["leve"]
+
+    await ingest(session, incident("sev-2", T0 + timedelta(seconds=1), {"iaq_index": 300}))
+    session.expire_all()
+    alerts = (await session.execute(select(Alert).order_by(Alert.alert_id))).scalars().all()
+    assert [a.severity for a in alerts] == ["emergencia", "emergencia"]
