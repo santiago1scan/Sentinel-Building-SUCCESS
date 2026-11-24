@@ -84,9 +84,11 @@ class ControladorSimulacion:
         """Línea en el log del panel (la usa el reflejo hacia Beta desde su propio hilo)."""
         self._linea(texto)
 
-    def _reflejar(self, nodo: str, tipo_sensor: str, activa: bool) -> None:
+    def _reflejar(self, nodo: str, tipo_sensor: str, activa: bool, modo: str | None) -> None:
         # Solo encola: el envío a Beta ocurre en otro hilo, nunca con el candado tomado.
-        if self.reflejo is not None:
+        # Solo se refleja la anomalía de los eventos reales ("fire"): Beta no conoce los modos y generaría sus
+        # valores de incendio, así que una vela reflejada llegaba al backend como incendio (24-nov-2026).
+        if self.reflejo is not None and modo == "fire":
             self.reflejo.anomalia(nodo, tipo_sensor, activa)
 
     # ------------------------------------------------------------------ validación
@@ -202,8 +204,11 @@ class ControladorSimulacion:
 
     def _poner_anomalia_bloqueado(self, nodo: str, alias: str, modo: str = "fire") -> None:
         tipo = resolver_sensor(alias)
+        anterior = self._anomalias[nodo].get(tipo)
         self._anomalias[nodo][tipo] = modo
-        self._reflejar(nodo, tipo, True)
+        if anterior != modo:
+            self._reflejar(nodo, tipo, False, anterior)
+            self._reflejar(nodo, tipo, True, modo)
         self._evento("Command", f"anomaly {nodo} {alias}")
         self._despertar.set()  # No espera al siguiente intervalo: la emergencia sale ya.
 
@@ -211,13 +216,12 @@ class ControladorSimulacion:
         for nodo, alias in pares:
             tipo = resolver_sensor(alias)
             if tipo in self._anomalias[nodo]:
-                del self._anomalias[nodo][tipo]
-                self._reflejar(nodo, tipo, False)
+                self._reflejar(nodo, tipo, False, self._anomalias[nodo].pop(tipo))
 
     def _limpiar_todo_bloqueado(self) -> None:
         for nodo, valores in self._anomalias.items():
             for tipo in sorted(valores):
-                self._reflejar(nodo, tipo, False)
+                self._reflejar(nodo, tipo, False, valores[tipo])
             valores.clear()
 
     def poner_anomalia(self, nodo: str, sensor: str) -> dict[str, Any]:
@@ -232,8 +236,7 @@ class ControladorSimulacion:
             self._validar_nodo(nodo)
             tipo = resolver_sensor(sensor)
             if tipo in self._anomalias[nodo]:
-                del self._anomalias[nodo][tipo]
-                self._reflejar(nodo, tipo, False)
+                self._reflejar(nodo, tipo, False, self._anomalias[nodo].pop(tipo))
             self._evento("Command", f"clear {nodo} {sensor}")
         return {"ok": True, "message": f"Anomaly cleared on {nodo} / {sensor}."}
 
