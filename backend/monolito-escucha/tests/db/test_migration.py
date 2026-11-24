@@ -17,6 +17,9 @@ async def _columns(table: str) -> set[str]:
 
 BEFORE_ANALYTICS = "a1d3f0c7b2e4"  # revision just before the analytics migration
 BEFORE_FLOOR = "b7e2c9a4d1f0"  # the analytics migration: the head before the floor table
+# Explicit revisions, not "-1": a later migration (e4b7d2a9c3f1, 17-Nov) made "-1" stop undoing the seed.
+BEFORE_CATALOG = "d5a9e3b1c7f2"  # the floor table: the revision just before the sensor catalog seed
+BEFORE_SEVERITY = "e4b7d2a9c3f1"  # node code as a label: the revision just before alert.severity
 
 
 def test_upgrade_and_downgrade_round_trip():
@@ -137,7 +140,7 @@ def test_sensor_catalog_seed_is_idempotent_and_downgrade_keeps_what_is_in_use():
         "INSERT INTO sensor (code, primary_node_id, sensor_type_id) "
         "SELECT 'ACC-1', node_id, (SELECT sensor_type_id FROM sensor_type WHERE name = 'ADXL355') FROM n"))
 
-    down = run_alembic("downgrade", "-1")
+    down = run_alembic("downgrade", BEFORE_CATALOG)
     assert down.returncode == 0, down.stderr
     after_down = _catalog()
     assert set(after_down) == {"ADXL355"}  # a sensor uses it: the type stays, its unused metrics go
@@ -172,7 +175,7 @@ def test_sensor_catalog_matches_default_ranges_and_reads_every_30_s():
 
 def test_sensor_catalog_seed_leaves_an_existing_metric_untouched():
     reset_schema()
-    down = run_alembic("downgrade", "-1")
+    down = run_alembic("downgrade", BEFORE_CATALOG)
     assert down.returncode == 0, down.stderr
     # A BME688 with temperature_c already there (e.g. created on first sight), with another range.
     asyncio.run(_fetch(
@@ -187,3 +190,31 @@ def test_sensor_catalog_seed_leaves_an_existing_metric_untouched():
     assert len(catalog["BME688"]) == 5  # the missing ones were added
     interval = asyncio.run(_fetch("SELECT sampling_interval FROM sensor_type WHERE name = 'BME688'"))
     assert interval[0]["sampling_interval"] == 1
+
+
+def test_alert_severity_column_round_trip():
+    """alert.severity (24-Nov-2026): emergencia | leve | NULL. Old alerts stay NULL; downgrade removes it."""
+    reset_schema()
+    columns = asyncio.run(_fetch(
+        "SELECT is_nullable FROM information_schema.columns WHERE table_name = 'alert' AND column_name = 'severity'"))
+    assert [c["is_nullable"] for c in columns] == ["YES"]
+
+    down = run_alembic("downgrade", BEFORE_SEVERITY)
+    assert down.returncode == 0, down.stderr
+    assert "severity" not in asyncio.run(_columns("alert"))
+    asyncio.run(_fetch(
+        "INSERT INTO alert (event_uuid, alert_code, alert_type, started_at, last_seen_at) "
+        "VALUES ('old-1', 'NODE_SILENT', 'technical', now(), now())"))
+
+    up = run_alembic("upgrade", "head")
+    assert up.returncode == 0, up.stderr
+    old = asyncio.run(_fetch("SELECT severity FROM alert WHERE event_uuid = 'old-1'"))
+    assert [r["severity"] for r in old] == [None]  # an existing alert is kept, with no severity
+
+    for value in ("emergencia", "leve"):
+        asyncio.run(_fetch("UPDATE alert SET severity = $1 WHERE event_uuid = 'old-1'", value))
+    try:
+        asyncio.run(_fetch("UPDATE alert SET severity = 'grave' WHERE event_uuid = 'old-1'"))
+        raise AssertionError("severity 'grave' should violate chk_alert_severity")
+    except asyncpg.exceptions.CheckViolationError:
+        pass
