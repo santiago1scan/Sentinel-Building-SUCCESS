@@ -258,3 +258,11 @@ async def test_nodes_do_not_mix(engine, store):
     await engine.apply_severity(NODE)
     await engine.apply_severity(4)
     assert [a.severity for a in store.alerts] == ["leve", "leve"]
+
+
+async def test_an_open_technical_notice_does_not_raise_heat_to_emergency(engine, store):
+    # A damaged gas sensor (technical) next to a candle (heat) is still minor: notices never count.
+    await engine.on_raw(GAS_SENSOR, NODE, TEMP, 120, minutes(0))
+    await engine.on_raw(THERMAL_SENSOR, NODE, MAX_C, 50, minutes(0))
+    await engine.apply_severity(NODE)
+    assert [(a.alert_type, a.severity) for a in store.alerts] == [("technical", None), ("out_of_range", "leve")]
