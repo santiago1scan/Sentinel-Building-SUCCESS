@@ -120,6 +120,9 @@ class TelemetryService:
                     await self._process_sensor(sensor_dto, node.node_id, telemetry, message, results)
             except Exception as e:
                 results["errors"].append(f"Error processing sensor {sensor_dto.sensor_code}: {e}")
+        # After all the node's sensors: a fire shows up as heat AND air quality, maybe from two sensors.
+        await self.engine.apply_severity(node.node_id)
+        await self.session.flush()
 
     async def _process_sensor(self, sensor_dto: SensorDTO, node_id: int, telemetry: TelemetryAggregateDTO,
                               message: IngestMessage, results: dict) -> None:

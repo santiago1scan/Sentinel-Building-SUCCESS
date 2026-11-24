@@ -75,7 +75,7 @@ def test_alert_payload_incluye_lo_que_necesita_el_panel():
     alert = SimpleNamespace(
         alert_id=5, event_uuid="u-1", alert_type="out_of_range", alert_code="OUT_OF_RANGE_ABOVE",
         direction="above", node_id=2, sensor_id=9, metric_id=4, started_at=at, last_seen_at=at,
-        ended_at=None, handled_by_user_id=None, handled_at=None,
+        ended_at=None, handled_by_user_id=None, handled_at=None, severity="leve",
     )
 
     payload = alert_payload(alert)
@@ -85,6 +85,7 @@ def test_alert_payload_incluye_lo_que_necesita_el_panel():
     assert payload["alert_type"] == "out_of_range"
     assert payload["started_at"] == "2026-11-16T10:00:00+00:00"
     assert payload["visible"] is True
+    assert payload["severity"] == "leve"
 
 
 @pytest.mark.asyncio

@@ -200,3 +200,22 @@ async def test_unhandled_route_is_reachable(seeded):
     assert response.status_code == 200, response.text
     assert {a["alert_id"] for a in response.json()} == {ids["small"], ids["big"], ids["tech"], ids["closed"],
                                                         ids["elsewhere"]}
+
+
+async def test_open_alerts_put_emergencies_first_and_carry_severity(seeded):
+    """24-Nov-2026: emergencia before leve, whatever the deviation; old alerts (NULL) after them; technical last."""
+    from sqlalchemy import text
+
+    client, ids = seeded
+    engine = create_async_engine(TEST_DATABASE_URL)
+    async with engine.begin() as conn:
+        await conn.execute(text("UPDATE alert SET severity = 'emergencia' WHERE alert_id = :i"), {"i": ids["small"]})
+        await conn.execute(text("UPDATE alert SET severity = 'leve' WHERE alert_id = :i"), {"i": ids["big"]})
+    await engine.dispose()
+
+    body = (await client.get("/alerts/open")).json()
+    assert [a["alert_id"] for a in body] == [ids["small"], ids["big"], ids["closed"], ids["elsewhere"], ids["tech"]]
+    assert [a["severity"] for a in body] == ["emergencia", "leve", None, None, None]
+
+    one = (await client.get(f"/alerts/{ids['small']}")).json()
+    assert one["severity"] == "emergencia"

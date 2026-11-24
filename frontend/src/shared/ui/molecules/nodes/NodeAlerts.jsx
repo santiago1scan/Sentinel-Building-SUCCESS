@@ -7,6 +7,9 @@ import styles from "./NodeAlerts.module.css";
  * /panel y la página de detalle del nodo. Con `nodeHref`, hacer clic en la alerta lleva a esa dirección (el
  * detalle del nodo); el botón de atender sigue funcionando por separado.
  */
+/** Gravedad que calcula el backend: no dice qué pasó (vela, incendio), solo qué tan grave se ve. */
+const GRAVITY_LABEL = { emergencia: "Emergencia", leve: "Leve" };
+
 function NodeAlerts({ groups = [], handling = {}, onHandle = () => {}, nodeHref = null }) {
   if (groups.length === 0) return null;
   return (
@@ -31,6 +34,11 @@ function NodeAlerts({ groups = [], handling = {}, onHandle = () => {}, nodeHref 
                   </Link>
                 ) : (
                   group.title
+                )}
+                {group.gravity && (
+                  <span className={styles.gravity} data-gravity={group.gravity}>
+                    {GRAVITY_LABEL[group.gravity]}
+                  </span>
                 )}
                 <span className={styles.groupState}>
                   {group.live ? "Activa" : "Terminó · sin atender"}

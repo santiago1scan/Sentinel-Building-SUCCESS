@@ -148,6 +148,100 @@
           </div>
           <button class="activate" type="button" data-scenario="power_failure">Activate power failure</button>
         </article>
+
+        <!-- Escenarios normales (24-nov-2026): el backend debe mostrarlos como «leve» o como aviso técnico. -->
+        <article class="scenario-card candle">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">🕯</div>
+            <h3>Candle</h3>
+          </div>
+          <p class="description">A small flame: one or two hot pixels, nothing else changes. Not an emergency.</p>
+          <p class="effect"><strong>Sensor:</strong> GRID-EYE (AMG8833) · 1–2 hot pixels</p>
+          <div class="field">
+            <label for="candleNodes">Affected nodes</label>
+            <select id="candleNodes" multiple size="2" aria-describedby="candleNodeHelp">
+              <option value="NODE-FLOOR-1" selected>Floor 1</option>
+              <option value="NODE-FLOOR-2" selected>Floor 2</option>
+            </select>
+            <span id="candleNodeHelp" class="field-help">Both floors are selected by default.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="candleDurationMode">Duration</label>
+              <select id="candleDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="candleDuration">Seconds</label>
+              <input id="candleDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="candle">Activate candle</button>
+        </article>
+
+        <article class="scenario-card spray">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">☁</div>
+            <h3>Cleaner or perfume spray</h3>
+          </div>
+          <p class="description">Volatile compounds in the air without heat. Not an emergency.</p>
+          <p class="effect"><strong>Sensor:</strong> BME688 · IAQ / TVOC up</p>
+          <div class="field">
+            <label for="sprayNodes">Affected nodes</label>
+            <select id="sprayNodes" multiple size="2" aria-describedby="sprayNodeHelp">
+              <option value="NODE-FLOOR-1" selected>Floor 1</option>
+              <option value="NODE-FLOOR-2" selected>Floor 2</option>
+            </select>
+            <span id="sprayNodeHelp" class="field-help">Both floors are selected by default.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="sprayDurationMode">Duration</label>
+              <select id="sprayDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sprayDuration">Seconds</label>
+              <input id="sprayDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="spray">Activate spray</button>
+        </article>
+
+        <article class="scenario-card faulty">
+          <div class="card-title-row">
+            <div class="scenario-icon" aria-hidden="true">⚙</div>
+            <h3>Faulty sensor</h3>
+          </div>
+          <p class="description">A damaged sensor sends impossible temperatures while the rest stays normal.</p>
+          <p class="effect"><strong>Sensor:</strong> BME688 · temperature 120 °C / −60 °C</p>
+          <div class="field">
+            <label for="faultyNode">Affected node <span aria-hidden="true">*</span></label>
+            <select id="faultyNode">
+              <option value="NODE-FLOOR-1">Floor 1</option>
+              <option value="NODE-FLOOR-2">Floor 2</option>
+            </select>
+            <span class="field-help">Exactly one node is required.</span>
+          </div>
+          <div class="duration-row">
+            <div class="field">
+              <label for="faultyDurationMode">Duration</label>
+              <select id="faultyDurationMode">
+                <option value="manual">Manual stop</option>
+                <option value="automatic">Automatic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="faultyDuration">Seconds</label>
+              <input id="faultyDuration" type="number" min="1" step="1" value="60" disabled>
+            </div>
+          </div>
+          <button class="activate" type="button" data-scenario="faulty_sensor">Activate faulty sensor</button>
+        </article>
       </div>
     </section>
 
@@ -270,13 +364,17 @@
 
     function nodeSelectionFor(scenario) {
       if (scenario === "power_failure") return [$("powerNode").value];
+      if (scenario === "faulty_sensor") return [$("faultyNode").value];
       if (scenario === "fire") return selectedNodes($("fireNodes"));
+      if (scenario === "candle") return selectedNodes($("candleNodes"));
+      if (scenario === "spray") return selectedNodes($("sprayNodes"));
       return selectedNodes($("earthquakeNodes"));
     }
 
     function durationPrefixFor(scenario) {
       if (scenario === "power_failure") return "power";
-      if (scenario === "fire") return "fire";
+      if (scenario === "faulty_sensor") return "faulty";
+      if (scenario === "fire" || scenario === "candle" || scenario === "spray") return scenario;
       return "earthquake";
     }
 
@@ -481,7 +579,7 @@
       button.addEventListener("click", () => activateScenario(button.dataset.scenario));
     });
 
-    ["fire", "earthquake", "power"].forEach((prefix) => {
+    ["fire", "earthquake", "power", "candle", "spray", "faulty"].forEach((prefix) => {
       $(`${prefix}DurationMode`).addEventListener("change", () => setDurationControl(prefix));
       setDurationControl(prefix);
     });

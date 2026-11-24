@@ -72,6 +72,18 @@ class ReflejoBetaTest(unittest.TestCase):
         self.assertEqual(self.enviados(), {
             ("NODE-FLOOR-1", "accelerometer", True), ("NODE-FLOOR-1", "accelerometer", False)})
 
+    def test_normal_scenarios_are_not_mirrored_in_beta(self) -> None:
+        # 24-nov-2026: Beta only knows "anomaly on a sensor" and would generate its fire values: a candle mirrored
+        # there reached the backend as a fire. Only the real-event mode ("fire") is mirrored.
+        self.controlador._ejecutando = True
+        self.controlador.iniciar_escenario("candle", NODOS, None)
+        time.sleep(0.8)
+        self.controlador.detener_escenario()
+        self.controlador.iniciar_escenario("spray", NODOS, None)
+        time.sleep(0.8)
+        self.controlador.detener_escenario()
+        self.assertEqual(self.enviados(), set())
+
     def test_clearing_something_not_set_sends_nothing(self) -> None:
         self.controlador.limpiar_anomalia("NODE-FLOOR-2", "ina219")
         self.controlador.detener_escenario()

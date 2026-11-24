@@ -36,6 +36,7 @@ class Alert(Base):
         ForeignKeyConstraint(["metric_id"], ["sensor_metric.metric_id"], ondelete="RESTRICT", onupdate="CASCADE", name="fk_alert_metric"),
         CheckConstraint("alert_type IN ('out_of_range', 'technical')", name="chk_alert_type"),
         CheckConstraint("direction IS NULL OR direction IN ('above', 'below')", name="chk_alert_direction"),
+        CheckConstraint("severity IS NULL OR severity IN ('emergencia', 'leve')", name="chk_alert_severity"),
         Index("idx_alert_open", "ended_at", "alert_type"),
     )
 
@@ -63,6 +64,8 @@ class Alert(Base):
     deviation: Mapped[decimal.Decimal] = mapped_column(Numeric(14, 4), nullable=False, server_default="0", default=0)
     reading_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
     handled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    # emergencia | leve, from app/analytics/severity.py. NULL for technical notices and alerts older than 24-Nov.
+    severity: Mapped[str | None] = mapped_column(String(20))
 
     reading: Mapped[Optional["Reading"]] = relationship("Reading", back_populates="alerts", foreign_keys=[reading_id])
     handled_by_user: Mapped[Optional["AppUser"]] = relationship("AppUser", back_populates="handled_alerts")

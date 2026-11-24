@@ -80,6 +80,12 @@ class AlertRepository:
                                    Alert.sensor_id == sensor_id, Alert.metric_id == metric_id)
         return list((await self.session.execute(stmt)).scalars().all())
 
+    async def open_out_of_range_by_node(self, node_id: int) -> list[tuple[Alert, str]]:
+        stmt = (select(Alert, SensorMetric.metric_code)
+                .join(SensorMetric, SensorMetric.metric_id == Alert.metric_id)
+                .where(Alert.ended_at.is_(None), Alert.alert_type == "out_of_range", Alert.node_id == node_id))
+        return [(alert, code) for alert, code in (await self.session.execute(stmt)).all()]
+
     async def add(self, alert: Alert) -> Alert:
         self.session.add(alert)
         await self.session.flush()

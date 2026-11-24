@@ -13,7 +13,7 @@ from typing import Any
 
 from app.core.tiempo import utc_ahora
 from app.datos.cliente_bridge import ClienteBridge, ClienteBridgeError
-from app.negocio.escenarios.definiciones import ESCENARIOS, nodos_por_defecto
+from app.negocio.escenarios.definiciones import ESCENARIOS, UN_SOLO_NODO, nodos_por_defecto
 from app.negocio.reflejo_beta import ReflejoBeta
 from app.negocio.generacion.sobres import eventos_nodo
 from app.negocio.sensores import resolver_sensor
@@ -61,7 +61,8 @@ class ControladorSimulacion:
         self._parar = threading.Event()
         self._despertar = threading.Event()
         self._ejecutando = False
-        self._anomalias: dict[str, set[str]] = {nodo: set() for nodo in self.nodos}
+        # nodo → tipo de sensor → modo ("fire", "candle", "spray", "faulty").
+        self._anomalias: dict[str, dict[str, str]] = {nodo: {} for nodo in self.nodos}
         self._silenciados: set[tuple[str, str]] = set()
         self._apagados: set[str] = set()
         self._escenario: dict[str, Any] | None = None
@@ -83,9 +84,11 @@ class ControladorSimulacion:
         """Línea en el log del panel (la usa el reflejo hacia Beta desde su propio hilo)."""
         self._linea(texto)
 
-    def _reflejar(self, nodo: str, tipo_sensor: str, activa: bool) -> None:
+    def _reflejar(self, nodo: str, tipo_sensor: str, activa: bool, modo: str | None) -> None:
         # Solo encola: el envío a Beta ocurre en otro hilo, nunca con el candado tomado.
-        if self.reflejo is not None:
+        # Solo se refleja la anomalía de los eventos reales ("fire"): Beta no conoce los modos y generaría sus
+        # valores de incendio, así que una vela reflejada llegaba al backend como incendio (24-nov-2026).
+        if self.reflejo is not None and modo == "fire":
             self.reflejo.anomalia(nodo, tipo_sensor, activa)
 
     # ------------------------------------------------------------------ validación
@@ -172,7 +175,7 @@ class ControladorSimulacion:
 
     def _ciclo(self, secuencia: int) -> None:
         with self._candado:
-            anomalias = {nodo: set(valores) for nodo, valores in self._anomalias.items()}
+            anomalias = {nodo: dict(valores) for nodo, valores in self._anomalias.items()}
             silenciados = set(self._silenciados)
             apagados = set(self._apagados)
 
@@ -199,10 +202,13 @@ class ControladorSimulacion:
 
     # ------------------------------------------------------------------ anomalías
 
-    def _poner_anomalia_bloqueado(self, nodo: str, alias: str) -> None:
+    def _poner_anomalia_bloqueado(self, nodo: str, alias: str, modo: str = "fire") -> None:
         tipo = resolver_sensor(alias)
-        self._anomalias[nodo].add(tipo)
-        self._reflejar(nodo, tipo, True)
+        anterior = self._anomalias[nodo].get(tipo)
+        self._anomalias[nodo][tipo] = modo
+        if anterior != modo:
+            self._reflejar(nodo, tipo, False, anterior)
+            self._reflejar(nodo, tipo, True, modo)
         self._evento("Command", f"anomaly {nodo} {alias}")
         self._despertar.set()  # No espera al siguiente intervalo: la emergencia sale ya.
 
@@ -210,13 +216,12 @@ class ControladorSimulacion:
         for nodo, alias in pares:
             tipo = resolver_sensor(alias)
             if tipo in self._anomalias[nodo]:
-                self._anomalias[nodo].discard(tipo)
-                self._reflejar(nodo, tipo, False)
+                self._reflejar(nodo, tipo, False, self._anomalias[nodo].pop(tipo))
 
     def _limpiar_todo_bloqueado(self) -> None:
         for nodo, valores in self._anomalias.items():
             for tipo in sorted(valores):
-                self._reflejar(nodo, tipo, False)
+                self._reflejar(nodo, tipo, False, valores[tipo])
             valores.clear()
 
     def poner_anomalia(self, nodo: str, sensor: str) -> dict[str, Any]:
@@ -231,8 +236,7 @@ class ControladorSimulacion:
             self._validar_nodo(nodo)
             tipo = resolver_sensor(sensor)
             if tipo in self._anomalias[nodo]:
-                self._anomalias[nodo].discard(tipo)
-                self._reflejar(nodo, tipo, False)
+                self._reflejar(nodo, tipo, False, self._anomalias[nodo].pop(tipo))
             self._evento("Command", f"clear {nodo} {sensor}")
         return {"ok": True, "message": f"Anomaly cleared on {nodo} / {sensor}."}
 
@@ -280,12 +284,13 @@ class ControladorSimulacion:
             raise ValueError("'scenario' must be a string.")
         nombre = nombre.strip().lower()
         if nombre not in ESCENARIOS:
-            raise ValueError("Unknown scenario. Use fire, earthquake, or power_failure.")
+            raise ValueError("Unknown scenario. Use fire, earthquake, power_failure, candle, spray, or "
+                             "faulty_sensor.")
 
         nodos = self.normalizar_nodos(cuerpo.get("nodes", []))
-        if nombre == "power_failure":
+        if nombre in UN_SOLO_NODO:
             if len(nodos) != 1:
-                raise ValueError("Power failure requires exactly one selected node.")
+                raise ValueError(f"{ESCENARIOS[nombre]['label']} requires exactly one selected node.")
         elif not nodos:
             nodos = nodos_por_defecto(nombre, self.nodos)
 
@@ -324,19 +329,19 @@ class ControladorSimulacion:
                 f"duration={'manual' if duracion_s is None else str(duracion_s) + ' s'}")
 
         threading.Thread(
-            target=self._ejecutar_escenario, args=(nombre, pares, duracion_s, token),
+            target=self._ejecutar_escenario, args=(nombre, pares, duracion_s, token, definicion["mode"]),
             name=f"escenario-{nombre}", daemon=True).start()
         return {"ok": True, "message": "Scenario activated."}
 
     def _ejecutar_escenario(self, nombre: str, pares: list[tuple[str, str]],
-                            duracion_s: int | None, token: int) -> None:
+                            duracion_s: int | None, token: int, modo: str = "fire") -> None:
         """Activa las anomalías una a una y administra la duración."""
         for indice, (nodo, sensor) in enumerate(pares):
             with self._candado:
                 if (self._escenario is None or self._escenario.get("token") != token
                         or not self._ejecutando):
                     return
-                self._poner_anomalia_bloqueado(nodo, sensor)
+                self._poner_anomalia_bloqueado(nodo, sensor, modo)
             if indice < len(pares) - 1:
                 time.sleep(0.3)
 

@@ -18,7 +18,8 @@ from app.services.alert_stream import alert_broadcaster
 
 _PENDING = "alert_stream_pending"
 _READY = "alert_stream_ready"
-_STATE_FIELDS = ("ended_at", "handled_by_user_id")
+# severity: a minor alert upgraded to emergency changes nothing else, and the panel must still hear of it.
+_STATE_FIELDS = ("ended_at", "handled_by_user_id", "severity")
 
 
 def is_visible_to_guard(alert: Alert) -> bool:
@@ -42,6 +43,7 @@ def alert_payload(alert: Alert) -> dict:
         "ended_at": alert.ended_at.isoformat() if alert.ended_at else None,
         "handled_by_user_id": alert.handled_by_user_id,
         "handled_at": alert.handled_at.isoformat() if alert.handled_at else None,
+        "severity": alert.severity,
         "visible": is_visible_to_guard(alert),
     }
 

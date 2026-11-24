@@ -51,6 +51,7 @@ class AlertRead(AlertBase):
     deviation: float = 0
     reading_count: int = 0
     handled_at: datetime.datetime | None = None
+    severity: str | None = None  # emergencia | leve (out-of-range only)
 
 
 class OpenAlert(AlertRead):

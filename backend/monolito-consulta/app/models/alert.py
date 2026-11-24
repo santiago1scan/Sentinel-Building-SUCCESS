@@ -63,6 +63,8 @@ class Alert(Base):
     deviation: Mapped[decimal.Decimal] = mapped_column(Numeric(14, 4), nullable=False, server_default="0", default=0)
     reading_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
     handled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    # emergencia | leve, set by monolito-escucha (app/analytics/severity.py). NULL: technical or older than 24-Nov.
+    severity: Mapped[str | None] = mapped_column(String(20))
 
     reading: Mapped[Optional["Reading"]] = relationship("Reading", back_populates="alerts", foreign_keys=[reading_id])
     handled_by_user: Mapped[Optional["AppUser"]] = relationship("AppUser", back_populates="handled_alerts")

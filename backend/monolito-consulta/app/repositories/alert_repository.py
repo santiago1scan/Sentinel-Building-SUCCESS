@@ -45,7 +45,8 @@ class AlertRepository(BaseRepository[Alert, Alert, Alert]):
         """Alerts the guard still has to see: not ended OR not handled (a short event that ended on its own
         stays until someone handles it). With floor, zone, node, sensor and the variable's normal range.
 
-        Order: emergencies (out_of_range) before technical notices, then the biggest deviation, then the newest.
+        Order: severity emergencia, then leve, then other out-of-range (older than 24-Nov, no severity), then
+        technical notices; inside each, the biggest deviation, then the newest.
         """
         stmt = (
             select(Alert, Zone.building_id, Floor.level, Floor.name, Zone.name, Node.code, Sensor.code, SensorMetric.metric_code,
@@ -56,7 +57,8 @@ class AlertRepository(BaseRepository[Alert, Alert, Alert]):
             .outerjoin(Sensor, Sensor.sensor_id == Alert.sensor_id)
             .outerjoin(SensorMetric, SensorMetric.metric_id == Alert.metric_id)
             .where(or_(Alert.ended_at.is_(None), Alert.handled_by_user_id.is_(None)))
-            .order_by(case((Alert.alert_type == "out_of_range", 0), else_=1), Alert.deviation.desc(),
+            .order_by(case((Alert.severity == "emergencia", 0), (Alert.severity == "leve", 1),
+                           (Alert.alert_type == "out_of_range", 2), else_=3), Alert.deviation.desc(),
                       Alert.started_at.desc())
         )
         rows = (await self.session.execute(stmt)).all()
