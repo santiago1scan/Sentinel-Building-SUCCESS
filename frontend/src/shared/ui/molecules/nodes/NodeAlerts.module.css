@@ -43,6 +43,20 @@
   font-weight: bold;
 }
 
+.gravity {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  background: var(--surface-2);
+  color: var(--status-warning-text);
+}
+
+.gravity[data-gravity="emergencia"] {
+  color: var(--status-alert-text);
+}
+
 .groupState {
   margin-left: 6px;
   font-size: 12px;

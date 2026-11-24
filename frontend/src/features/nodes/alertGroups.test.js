@@ -142,4 +142,32 @@ describe("groupAlerts", () => {
     const byModel = buildCatalog(sensors, [{ sensor_type_id: 40, name: "INA219", metrics: [] }]);
     expect(groupAlerts([alert({ sensor_id: 4, metric_id: 123 })], byModel)[0].category).toBe("energy");
   });
+
+  // Gravedad (24-nov-2026): la calcula el backend (monolito-escucha) por nodo; el panel solo la muestra.
+  describe("gravedad", () => {
+    it("si alguna alerta del grupo es emergencia, la tarjeta es emergencia y queda en rojo", () => {
+      const [group] = groupAlerts([
+        alert({ sensor_id: 2, metric_id: 6, severity: "leve" }),
+        alert({ sensor_id: 2, metric_id: 7, severity: "emergencia" }),
+      ], catalog);
+      expect(group.gravity).toBe("emergencia");
+      expect(group.severity).toBe("alert");
+    });
+
+    it("solo alertas leves: la tarjeta es leve y no se pinta de rojo", () => {
+      const [group] = groupAlerts([alert({ sensor_id: 2, metric_id: 6, severity: "leve" })], catalog);
+      expect(group.gravity).toBe("leve");
+      expect(group.severity).toBe("warning");
+    });
+
+    it("alertas sin gravedad (viejas o avisos técnicos) se ven como antes", () => {
+      const [old] = groupAlerts([alert({ sensor_id: 2, metric_id: 6, severity: null })], catalog);
+      expect(old.gravity).toBeNull();
+      expect(old.severity).toBe("alert");
+      const [technical] = groupAlerts([
+        alert({ sensor_id: 3, metric_id: 9, alert_type: "technical", alert_code: "SENSOR_IMPOSSIBLE", direction: null }),
+      ], catalog);
+      expect(technical.gravity).toBeNull();
+    });
+  });
 });

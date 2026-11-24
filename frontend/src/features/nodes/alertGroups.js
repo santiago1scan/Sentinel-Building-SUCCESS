@@ -106,9 +106,19 @@ function describe(alert, metric) {
 }
 
 /**
+ * Gravedad de la tarjeta: la calcula el backend (monolito-escucha, app/analytics/severity.py) para cada alerta;
+ * la tarjeta toma la peor. null si ninguna la trae (avisos técnicos o alertas anteriores al 24-nov).
+ */
+function gravityOf(alerts) {
+  if (alerts.some((alert) => alert.severity === "emergencia")) return "emergencia";
+  if (alerts.some((alert) => alert.severity === "leve")) return "leve";
+  return null;
+}
+
+/**
  * @param {Array} alerts Alertas visibles de UN nodo.
  * @param {ReturnType<typeof buildCatalog>} catalog
- * @returns {Array<{key, category, title, label, severity, live, attended, alerts, unhandled, sensors}>}
+ * @returns {Array<{key, category, title, label, severity, gravity, live, attended, alerts, unhandled, sensors}>}
  */
 export function groupAlerts(alerts, catalog = buildCatalog()) {
   const groups = new Map();
@@ -144,8 +154,10 @@ export function groupAlerts(alerts, catalog = buildCatalog()) {
       category,
       title: CATEGORIES[category].title,
       label: CATEGORIES[category].label,
-      // Fuera de rango manda sobre un aviso técnico.
-      severity: group.alerts.some((alert) => alert.alert_type === "out_of_range") ? "alert" : "warning",
+      // Fuera de rango manda sobre un aviso técnico; una alerta leve (24-nov) no pinta de rojo.
+      severity: group.alerts.some((alert) => alert.alert_type === "out_of_range" && alert.severity !== "leve")
+        ? "alert" : "warning",
+      gravity: gravityOf(group.alerts),
       // Viva = alguna de sus variables sigue fuera de rango (o con el aviso abierto).
       live: group.alerts.some((alert) => !alert.ended_at),
       attended: unhandled.length === 0,
